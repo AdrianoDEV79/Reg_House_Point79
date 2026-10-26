@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registros — Controle de Ponto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563EB; --primary-dark: #1D4ED8; --success: #10B981; --danger: #EF4444;
+            --bg-gradient: linear-gradient(180deg, #EFF6FF 0%, #E0EFFF 40%, #DBEAFE 100%);
+            --card-bg: rgba(255,255,255,0.85); --border: #BFDBFE; --shadow: 0 4px 15px rgba(37,99,235,0.1);
+            --text: #1E293B; --text-muted: #64748B;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-gradient); min-height: 100vh; padding-bottom: 90px; color: var(--text); }
+        .top-header { position: sticky; top:0; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 16px 20px; box-shadow: 0 4px 15px rgba(37,99,235,0.25); }
+        .top-header h1 { font-size: 18px; font-weight: 700; }
+        .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--card-bg); backdrop-filter: blur(8px); border-radius: 20px; padding: 20px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .filters { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:flex-end; margin-bottom:16px; }
+        .filters label { font-size:11px; color:var(--text-muted); margin-bottom:4px; display:block; }
+        .filters input { width:100%; padding:10px; border:2px solid var(--border); border-radius:10px; font-size:14px; }
+        .btn { padding:10px 16px; border:none; border-radius:10px; font-weight:600; cursor:pointer; }
+        .btn-primary { background:var(--primary); color:white; }
+        .record-row { padding:14px 0; border-bottom:1px solid var(--border); font-size:13px; }
+        .record-row:last-child { border-bottom:none; }
+        .record-top { display:flex; justify-content:space-between; margin-bottom:6px; }
+        .record-name { font-weight:600; }
+        .record-date { color:var(--text-muted); font-size:12px; }
+        .record-times { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; text-align:center; }
+        .time-block { background:linear-gradient(135deg,#EFF6FF,#DBEAFE); padding:6px 4px; border-radius:8px; }
+        .time-block span { display:block; font-size:10px; color:var(--text-muted); }
+        .loading { text-align:center; padding:30px; color:var(--text-muted); }
+        .bottom-nav { position:fixed; bottom:0; left:0; right:0; background:var(--card-bg); backdrop-filter:blur(10px); display:flex; justify-content:space-around; padding:10px 0; border-top:1px solid var(--border); z-index:100; box-shadow:0 -4px 15px rgba(37,99,235,0.12); }
+        .nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--text-muted); text-decoration:none; font-size:10px; }
+        .nav-btn i { font-size:20px; }
+        .nav-btn.active { color:var(--primary); font-weight:600; }
+        @media(max-width:480px) { .filters { grid-template-columns:1fr; } .record-times { font-size:11px; } }
+    </style>
+</head>
+<body>
+    <header class="top-header"><h1>📋 Registros de Ponto</h1></header>
+    <div class="container">
+        <div class="card">
+            <div class="filters">
+                <div><label>De:</label><input type="date" id="dataInicio"></div>
+                <div><label>Até:</label><input type="date" id="dataFim"></div>
+                <button class="btn btn-primary" onclick="aplicarFiltro()"><i class="fas fa-search"></i></button>
+            </div>
+            <div id="lista" class="loading">Carregando...</div>
+        </div>
+    </div>
+    <nav class="bottom-nav">
+        <a href="?page=geral" class="nav-btn"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="?page=equipe" class="nav-btn"><i class="fas fa-users"></i> Equipe</a>
+        <a href="?page=registros" class="nav-btn active"><i class="fas fa-clipboard-list"></i> Registros</a>
+        <a href="?page=ajustes" class="nav-btn"><i class="fas fa-cog"></i> Ajustes</a>
+    </nav>
+    <script>
+        function navegarPara(p) { window.location.href = '?page=' + p; }
+        
+        function aplicarFiltro() {
+            const de = document.getElementById('dataInicio').value;
+            const ate = document.getElementById('dataFim').value;
+            
+            // Converter para formato dd/mm/aaaa
+            const deFormatado = de ? de.split('-').reverse().join('/') : '';
+            const ateFormatado = ate ? ate.split('-').reverse().join('/') : '';
+            
+            document.getElementById('lista').innerHTML = '<p class="loading">Buscando registros...</p>';
+            
+            google.script.run
+                .withSuccessHandler(mostrarRegistros)
+                .getRegistrosFiltrados(deFormatado, ateFormatado);
+        }
+        
+        function mostrarRegistros(lista) {
+            const c = document.getElementById('lista');
+            if (!lista || lista.length === 0) {
+                c.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">Nenhum registro encontrado no período</p>';
+                return;
+            }
+            
+            c.innerHTML = '';
+            lista.forEach(r => {
+                c.innerHTML += `
+                <div class="record-row">
+                    <div class="record-top">
+                        <span class="record-name">${r.nome}</span>
+                        <span class="record-date">${r.data}</span>
+                    </div>
+                    <div class="record-times">
+                        <div class="time-block"><span>Entrada</span>${r.entrada || '—'}</div>
+                        <div class="time-block"><span>Saída Intervalo</span>${r.saidaIntervalo || '—'}</div>
+                        <div class="time-block"><span>Retorno</span>${r.retornoIntervalo || '—'}</div>
+                        <div class="time-block"><span>Saída</span>${r.saida || '—'}</div>
+                    </div>
+                    <div style="text-align:right;margin-top:8px;font-weight:600;color:var(--primary-dark);">
+                        ⏱️ Total: ${r.totalHoras || '—'}
+                    </div>
+                </div>`;
+            });
+        }
+        
+        // Carregar todos os registros ao abrir
+        window.onload = function() {
+            aplicarFiltro();
+        };
+    </script>
+</body>
+</html>

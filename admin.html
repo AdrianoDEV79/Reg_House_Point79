@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin — Controle de Ponto</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563EB; --primary-dark: #1D4ED8; --primary-light: #BFDBFE;
+            --success: #10B981; --success-bg: #ECFDF5; --warning: #F59E0B; --warning-bg: #FFFBEB;
+            --danger: #EF4444; --danger-bg: #FEF2F2; --text: #1E293B; --text-muted: #64748B;
+            --bg-gradient: linear-gradient(180deg, #EFF6FF 0%, #E0EFFF 40%, #DBEAFE 100%);
+            --card-bg: rgba(255,255,255,0.85); --border: #BFDBFE; --shadow: 0 4px 15px rgba(37,99,235,0.1);
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-gradient); min-height: 100vh; color: var(--text); padding-bottom: 90px; }
+        .top-header { position: sticky; top: 0; z-index: 100; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 16px 20px; box-shadow: 0 4px 15px rgba(37,99,235,0.25); }
+        .top-header h1 { font-size: 18px; font-weight: 700; }
+        .top-header p { font-size: 12px; opacity: 0.9; margin-top: 2px; }
+        .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--card-bg); backdrop-filter: blur(8px); border-radius: 20px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 16px; border: 1px solid var(--border); }
+        .section-title { font-size: 15px; font-weight: 700; margin-bottom: 14px; color: var(--primary-dark); }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .stat-card { text-align: center; padding: 14px 8px; border-radius: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .stat-card.blue { background: linear-gradient(135deg, #EFF6FF, #DBEAFE); color: var(--primary-dark); }
+        .stat-card.green { background: linear-gradient(135deg, #ECFDF5, #D1FAE5); color: #065F46; }
+        .stat-card.orange { background: linear-gradient(135deg, #FFFBEB, #FED7AA); color: #92400E; }
+        .stat-card.red { background: linear-gradient(135deg, #FEF2F2, #FEE2E2); color: #991B1B; }
+        .stat-value { font-size: 22px; font-weight: 700; }
+        .stat-label { font-size: 10px; opacity: 0.8; margin-top: 3px; }
+        .chart-block { margin-bottom: 20px; }
+        .chart-container { position: relative; height: 240px; }
+        .chart-note { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+        .employee-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .employee-item:last-child { border-bottom: none; }
+        .employee-left { display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; box-shadow: 0 3px 8px rgba(37,99,235,0.25); }
+        .employee-info .name { font-weight: 600; font-size: 14px; }
+        .employee-info .dept { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .status-badge { padding: 5px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; }
+        .status-present { background: var(--success-bg); color: #065F46; }
+        .status-absent { background: var(--danger-bg); color: #991B1B; }
+        .btn { width: 100%; padding: 13px; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; box-shadow: 0 4px 12px rgba(37,99,235,0.25); }
+        .btn-outline { background: linear-gradient(135deg, #F8FAFC, #EFF6FF); color: var(--primary); border: 2px solid var(--primary); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -4px 15px rgba(37,99,235,0.12); border-top: 1px solid var(--border); z-index: 100; }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10px; }
+        .nav-btn i { font-size: 20px; }
+        .nav-btn.active { color: var(--primary); font-weight: 600; }
+        .loading { text-align: center; padding: 20px; color: var(--text-muted); }
+        @media (min-width: 768px) { .container { max-width: 900px; } .stats-grid { grid-template-columns: repeat(4, 1fr); } }
+    </style>
+</head>
+<body>
+    <header class="top-header">
+        <h1>📊 Painel Administrativo</h1>
+        <p id="dataHoje">Carregando...</p>
+    </header>
+    <div class="container">
+        <div class="card">
+            <div class="section-title">📈 Resumo de Hoje</div>
+            <div class="stats-grid">
+                <div class="stat-card blue"><div class="stat-value" id="totalFuncHoje">—</div><div class="stat-label">Total Funcionários</div></div>
+                <div class="stat-card green"><div class="stat-value" id="presentesHoje">—</div><div class="stat-label">Presentes</div></div>
+                <div class="stat-card red"><div class="stat-value" id="ausentesHoje">—</div><div class="stat-label">Ausentes</div></div>
+                <div class="stat-card orange"><div class="stat-value" id="horasExtrasHoje">—</div><div class="stat-label">Extras Hoje</div></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="section-title">📈 Resumo do Mês</div>
+            <div class="stats-grid">
+                <div class="stat-card blue"><div class="stat-value">176h</div><div class="stat-label">Carga Prevista</div></div>
+                <div class="stat-card green"><div class="stat-value" id="trabalhadoMes">—</div><div class="stat-label">Trabalhadas</div></div>
+                <div class="stat-card orange"><div class="stat-value" id="extrasMes">—</div><div class="stat-label">Horas Extras</div></div>
+                <div class="stat-card red"><div class="stat-value" id="diasExtrasMes">—</div><div class="stat-label">C/ Hora Extra</div></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="chart-block">
+                <div class="section-title">📊 Carga Horária × Trabalhadas — Mês</div>
+                <div class="chart-container"><canvas id="graficoCarga"></canvas></div>
+                <p class="chart-note">Linha tracejada = meta de 8h/dia</p>
+            </div>
+        </div>
+        <div class="card">
+            <div class="chart-block">
+                <div class="section-title">⏱️ Horas Extras por Dia</div>
+                <div class="chart-container"><canvas id="graficoExtras"></canvas></div>
+                <p class="chart-note">Apenas dias com registro acima de 8h</p>
+            </div>
+        </div>
+        <div class="card">
+            <div class="section-title">👥 Trabalhando Agora</div>
+            <div id="listaFunc" class="loading">Carregando...</div>
+            <button class="btn btn-outline" style="margin-top: 12px;" onclick="navegarPara('equipe')">Ver todos os funcionários</button>
+        </div>
+        <div class="card">
+            <div class="section-title">📋 Ações Rápidas</div>
+            <button class="btn btn-primary" style="margin-bottom: 10px;" onclick="navegarPara('registros')"><i class="fas fa-clipboard-list"></i> Ver Todos os Registros</button>
+            <button class="btn btn-outline" onclick="exportarRelatorio()"><i class="fas fa-file-export"></i> Exportar Relatório</button>
+        </div>
+    </div>
+    <nav class="bottom-nav">
+        <a href="?page=geral" class="nav-btn active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="?page=equipe" class="nav-btn"><i class="fas fa-users"></i> Equipe</a>
+        <a href="?page=registros" class="nav-btn"><i class="fas fa-clipboard-list"></i> Registros</a>
+        <a href="?page=ajustes" class="nav-btn"><i class="fas fa-cog"></i> Ajustes</a>
+    </nav>
+    <script>
+        document.getElementById('dataHoje').textContent = new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long'});
+        function navegarPara(p) { window.location.href = '?page=' + p; }
+        function carregarDados() {
+            google.script.run.withSuccessHandler(atualizarPainel).getDashboardData();
+            google.script.run.withSuccessHandler(atualizarLista).getWorkingEmployees();
+        }
+        function atualizarPainel(d) {
+            document.getElementById('totalFuncHoje').textContent = d.totalFunc;
+            document.getElementById('presentesHoje').textContent = d.presentes;
+            document.getElementById('ausentesHoje').textContent = d.ausentes;
+            document.getElementById('horasExtrasHoje').textContent = d.extrasHoje;
+            document.getElementById('extrasMes').textContent = d.extrasMes;
+            document.getElementById('diasExtrasMes').textContent = d.diasComExtra;
+        }
+        function atualizarLista(lista) {
+            const c = document.getElementById('listaFunc');
+            c.innerHTML = lista.length ? '' : '<p style="text-align:center;color:var(--text-muted)">Nenhum registro hoje</p>';
+            lista.forEach(f => {
+                c.innerHTML += `<div class="employee-item"><div class="employee-left"><div class="avatar">${(f.nome||'')[0]||'?'}</div><div class="employee-info"><div class="name">${f.nome}</div><div class="dept">Entrada: ${f.entrada||'—'}</div></div></div><span class="status-badge ${f.status==='Trabalhando'?'status-present':'status-absent'}">${f.status}</span></div>`;
+            });
+        }
+        function exportarRelatorio() { alert('Função de exportação será implementada'); }
+        window.onload = carregarDados;
+        const ctxCarga = document.getElementById('graficoCarga').getContext('2d');
+        new Chart(ctxCarga, {
+            type: 'bar',
+            data: {
+                labels: ['01/09','02/09','03/09','04/09','05/09','08/09','09/09','10/09','11/09','12/09'],
+                datasets: [
+                    {type:'line',label:'Meta 8h',data:[8,8,8,8,8,8,8,8,8,8],borderColor:'#94A3B8',borderDash:[6,4],fill:false,pointRadius:0},
+                    {type:'bar',label:'Trabalhadas',data:[8,7.5,8.5,9,8,10,7,8,9.5,8],backgroundColor:'#2563EB',borderRadius:10}
+                ]
+            },
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12,font:{size:11}}}},scales:{y:{ticks:{callback:v=>v+'h'}}}}
+        });
+        const ctxExtras = document.getElementById('graficoExtras').getContext('2d');
+        new Chart(ctxExtras, {
+            type:'bar',
+            data:{labels:['03/09','04/09','08/09','11/09'],datasets:[{label:'Extras',data:[0.5,1.0,2.0,1.5],backgroundColor:'#F59E0B',borderRadius:10}]},
+            options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{ticks:{callback:v=>v+'h'}}}}
+        });
+    </script>
+</body>
+</html>

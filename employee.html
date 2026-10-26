@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Ponto — Funcionário</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563EB; --primary-dark: #1D4ED8; --primary-light: #BFDBFE;
+            --success: #10B981; --success-dark: #059669; --warning: #F59E0B;
+            --danger: #EF4444; --danger-dark: #DC2626;
+            --bg-gradient: linear-gradient(180deg, #EFF6FF 0%, #E0EFFF 50%, #DBEAFE 100%);
+            --card-bg: rgba(255,255,255,0.85); --text: #1E293B; --text-muted: #64748B;
+            --border: #BFDBFE; --shadow: 0 4px 20px rgba(37,99,235,0.12);
+        }
+        body {
+            font-family: 'Inter', sans-serif; background: var(--bg-gradient);
+            min-height: 100vh; color: var(--text); padding: 16px 16px 30px;
+        }
+        .container { max-width: 440px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 16px; }
+        .logo {
+            width: 60px; height: 60px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 16px; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 12px; color: white; font-size: 26px;
+            box-shadow: 0 8px 20px rgba(37,99,235,0.3);
+        }
+        .header h1 { font-size: 20px; font-weight: 700; }
+        .header p { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+        .card {
+            background: var(--card-bg); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 20px; box-shadow: var(--shadow);
+            margin-bottom: 14px; border: 1px solid rgba(37,99,235,0.1);
+        }
+        .status-card {
+            background: linear-gradient(135deg, #1E40AF, #3B82F6); color: white;
+            text-align: center; box-shadow: 0 8px 25px rgba(30,64,175,0.35);
+            padding: 24px 20px;
+        }
+        .status-time { font-size: 40px; font-weight: 700; letter-spacing: 1px; }
+        .status-date { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+        .status-label { font-size: 12px; margin-top: 6px; opacity: 0.85; }
+        
+        /* 🔘 BOTÃO PRINCIPAL — EM DESTAQUE, ACIMA DO MAPA */
+        .btn-main {
+            width: 100%; padding: 18px; border: none; border-radius: 16px;
+            font-size: 18px; font-weight: 700; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin: 16px 0; transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-main:hover { transform: translateY(-2px); }
+        .btn-main:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-entrada { background: linear-gradient(135deg, var(--success), var(--success-dark)); color: white; box-shadow: 0 6px 20px rgba(16,185,129,0.4); }
+        .btn-saida { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); color: white; box-shadow: 0 6px 20px rgba(239,68,68,0.4); }
+        .btn-intervalo { background: linear-gradient(135deg, var(--warning), #D97706); color: white; box-shadow: 0 6px 20px rgba(245,158,11,0.4); }
+        
+        .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+        .time-item {
+            text-align: center; padding: 12px 8px;
+            background: linear-gradient(135deg, #EFF6FF, #E0EFFF);
+            border-radius: 12px; border: 1px solid var(--border);
+        }
+        .time-item .label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+        .time-item .value { font-size: 15px; font-weight: 700; color: var(--primary-dark); }
+        
+        /* 📍 MAPA */
+        .map-container {
+            background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+            border-radius: 14px; padding: 14px; margin-top: 12px;
+            border: 1px solid #6EE7B7;
+        }
+        .map-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+        .map-header i { color: var(--success); font-size: 18px; }
+        .map-header span { font-weight: 600; font-size: 14px; color: #065F46; }
+        .map-placeholder {
+            height: 120px; background: linear-gradient(135deg, #A7F3D0, #6EE7B7);
+            border-radius: 10px; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; gap: 6px;
+            color: #047857; border: 2px dashed #34D399;
+        }
+        .map-placeholder i { font-size: 28px; }
+        .map-coords { font-size: 10px; font-family: monospace; background: rgba(255,255,255,0.7); padding: 3px 8px; border-radius: 6px; margin-top: 4px; }
+        
+        .btn-secondary {
+            width: 100%; padding: 12px; border: none; border-radius: 12px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            margin-top: 8px;
+        }
+        .btn-outline { background: linear-gradient(135deg, #F8FAFC, #EFF6FF); color: var(--primary); border: 2px solid var(--primary); }
+        
+        .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: var(--text-muted); }
+        .info-value { font-weight: 600; }
+        
+        .logout { margin-top: 16px; text-align: center; }
+        .logout a { color: var(--text-muted); font-size: 13px; text-decoration: none; }
+        
+        .mensagem { padding: 12px; border-radius: 10px; margin-top: 16px; display: none; font-size: 14px; }
+        .mensagem.sucesso { background: #ECFDF5; color: #065F46; display: block; }
+        .mensagem.erro { background: #FEF2F2; color: #991B1B; display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo"><i class="fas fa-clock"></i></div>
+            <h1 id="nomeUsuario">Bem-vindo</h1>
+            <p id="dataHoje">Carregando...</p>
+        </div>
+
+        <!-- ⏰ HORÁRIO -->
+        <div class="card status-card">
+            <div class="status-time" id="relogio">00:00:00</div>
+            <div class="status-date" id="dataCompleta">—</div>
+            <div class="status-label">🕒 Horário de Brasília</div>
+        </div>
+
+        <!-- 🔘 BOTÃO PRINCIPAL — AGORA EM DESTAQUE, NO ALCANCE FÁCIL -->
+        <button class="btn-main" id="btnPonto" onclick="registrarAcao()">
+            <i class="fas fa-sign-in-alt"></i> <span id="textoBotao">Entrada</span>
+        </button>
+
+        <!-- 📊 HORÁRIOS DA JORNADA -->
+        <div class="card">
+            <div class="time-grid">
+                <div class="time-item">
+                    <div class="label">Entrada</div>
+                    <div class="value" id="horarioEntrada">—</div>
+                </div>
+                <div class="time-item">
+                    <div class="label">Saída Intervalo</div>
+                    <div class="value" id="saidaIntervalo">—</div>
+                </div>
+                <div class="time-item">
+                    <div class="label">Retorno Intervalo</div>
+                    <div class="value" id="retornoIntervalo">—</div>
+                </div>
+                <div class="time-item">
+                    <div class="label">Saída</div>
+                    <div class="value" id="horarioSaida">—</div>
+                </div>
+            </div>
+
+            <!-- 📍 MAPA DE LOCALIZAÇÃO -->
+            <div class="map-container">
+                <div class="map-header">
+                    <i class="fas fa-map-marker-alt"></i>
+                    <span>Localização</span>
+                </div>
+                <div class="map-placeholder" id="mapaLocal">
+                    <i class="fas fa-map-marked-alt"></i>
+                    <span id="statusLocalizacao">Obtendo localização...</span>
+                    <div class="map-coords" id="coordenadas">—</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ℹ️ INFORMAÇÕES COMPLEMENTARES -->
+        <div class="card">
+            <div class="info-row">
+                <span class="info-label">📍 Geolocalização</span>
+                <span class="info-value" id="statusGeo">Aguardando...</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">⏱️ Horas Trabalhadas</span>
+                <span class="info-value" id="horasTrabalhadas">—</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Status do Dia</span>
+                <span class="info-value" id="statusDia">—</span>
+            </div>
+        </div>
+
+        <!-- 💬 MENSAGEM DE RETORNO -->
+        <div class="mensagem" id="mensagem"></div>
+
+        <!-- 🔘 BOTÕES SECUNDÁRIOS -->
+        <button class="btn-secondary btn-outline" onclick="verHistorico()">
+            <i class="fas fa-history"></i> Ver Histórico
+        </button>
+        <button class="btn-secondary btn-outline" onclick="gerarRelatorio()">
+            <i class="fas fa-file-pdf"></i> Gerar Relatório
+        </button>
+
+        <div class="logout">
+            <a href="#" onclick="sair()"><i class="fas fa-sign-out-alt"></i> Sair da conta</a>
+        </div>
+    </div>
+
+    <!-- ⚡ FUNÇÕES CONECTADAS COM O APPS SCRIPT -->
+    <script>
+        // ==========================================
+        // VARIÁVEIS GLOBAIS
+        // ==========================================
+        let usuario = null;
+        let registroAtual = null;
+        let localizacao = '';
+        let proximaAcao = 'entrada';
+
+        // ==========================================
+        // RELÓGIO EM TEMPO REAL
+        // ==========================================
+        function atualizarRelogio() {
+            const agora = new Date();
+            document.getElementById('relogio').textContent = 
+                agora.toLocaleTimeString('pt-BR', {hour12: false});
+            document.getElementById('dataCompleta').textContent = 
+                agora.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+            document.getElementById('dataHoje').textContent = 
+                agora.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+        }
+
+        // ==========================================
+        // INICIALIZAÇÃO
+        // ==========================================
+        function carregarPagina() {
+            // Verificar sessão
+            const sessao = sessionStorage.getItem('usuarioLogado');
+            if (!sessao) {
+                window.location.href = '?page=login';
+                return;
+            }
+            usuario = JSON.parse(sessao);
+            
+            // Exibir nome
+            document.getElementById('nomeUsuario').textContent = 
+                'Bem-vindo, ' + (usuario.userName || usuario.name || 'Usuário');
+            
+            // Capturar localização
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    pos => {
+                        localizacao = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+                        document.getElementById('coordenadas').textContent = localizacao;
+                        document.getElementById('statusLocalizacao').textContent = 'Você está no local correto ✅';
+                        document.getElementById('statusGeo').textContent = '✓ Registrada';
+                        document.getElementById('statusGeo').style.color = 'var(--success)';
+                    },
+                    err => {
+                        localizacao = 'Não autorizada';
+                        document.getElementById('statusLocalizacao').textContent = 'Sem permissão de localização ⚠️';
+                        document.getElementById('statusGeo').textContent = 'Não autorizada';
+                        document.getElementById('statusGeo').style.color = 'var(--warning)';
+                    }
+                );
+            } else {
+                document.getElementById('statusLocalizacao').textContent = 'Navegador não suporta ❌';
+            }
+            
+            // Carregar último registro do dia
+            google.script.run
+                .withSuccessHandler(atualizarTelaComRegistro)
+                .getLatestEmployeeRecord(usuario.userId || usuario.idFuncionario);
+        }
+
+        // ==========================================
+        // PREENCHER TELA COM DADOS DO REGISTRO
+        // ==========================================
+        function atualizarTelaComRegistro(reg) {
+            registroAtual = reg;
+            
+            // Preencher horários
+            document.getElementById('horarioEntrada').textContent = reg?.entrada || '—';
+            document.getElementById('saidaIntervalo').textContent = reg?.saidaIntervalo || '—';
+            document.getElementById('retornoIntervalo').textContent = reg?.retornoIntervalo || '—';
+            document.getElementById('horarioSaida').textContent = reg?.saida || '—';
+            document.getElementById('horasTrabalhadas').textContent = reg?.totalHorasTrabalhadas || '—';
+            
+            // Definir status
+            if (!reg || !reg.entrada) {
+                document.getElementById('statusDia').textContent = 'Aguardando entrada';
+                proximaAcao = 'entrada';
+            } else if (reg.saida) {
+                document.getElementById('statusDia').textContent = '✅ Jornada finalizada';
+                proximaAcao = null;
+            } else if (!reg.saidaIntervalo) {
+                document.getElementById('statusDia').textContent = '🔄 Em andamento';
+                proximaAcao = 'saida_intervalo';
+            } else if (!reg.retornoIntervalo) {
+                document.getElementById('statusDia').textContent = '☕ Em intervalo';
+                proximaAcao = 'retorno_intervalo';
+            } else {
+                document.getElementById('statusDia').textContent = '🔄 Em andamento';
+                proximaAcao = 'saida';
+            }
+            
+            // Atualizar botão
+            atualizarBotaoPrincipal();
+        }
+
+        // ==========================================
+        // CONFIGURAR BOTÃO PRINCIPAL
+        // ==========================================
+        function atualizarBotaoPrincipal() {
+            const btn = document.getElementById('btnPonto');
+            const icones = {
+                entrada: 'fa-sign-in-alt',
+                saida_intervalo: 'fa-coffee',
+                retorno_intervalo: 'fa-undo',
+                saida: 'fa-sign-out-alt'
+            };
+            const textos = {
+                entrada: 'Registrar Entrada',
+                saida_intervalo: 'Saída Intervalo',
+                retorno_intervalo: 'Retorno Intervalo',
+                saida: 'Registrar Saída'
+            };
+            const classes = {
+                entrada: 'btn-entrada',
+                saida_intervalo: 'btn-intervalo',
+                retorno_intervalo: 'btn-entrada',
+                saida: 'btn-saida'
+            };
+            
+            // Resetar classes
+            btn.className = 'btn-main';
+            
+            if (!proximaAcao) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-check-circle"></i> Jornada Concluída';
+            } else {
+                btn.disabled = false;
+                btn.classList.add(classes[proximaAcao]);
+                btn.innerHTML = `<i class="fas ${icones[proximaAcao]}"></i> ${textos[proximaAcao]}`;
+            }
+        }
+
+        // ==========================================
+        // EXECUTAR REGISTRO
+        // ==========================================
+        function registrarAcao() {
+            if (!proximaAcao) return;
+            
+            ocultarMensagem();
+            
+            google.script.run
+                .withSuccessHandler(resposta => {
+                    if (resposta.success) {
+                        mostrarMensagem(resposta.message, 'sucesso');
+                        // Recarregar dados
+                        google.script.run
+                            .withSuccessHandler(atualizarTelaComRegistro)
+                            .getLatestEmployeeRecord(usuario.userId || usuario.idFuncionario);
+                    } else {
+                        mostrarMensagem(resposta.message, 'erro');
+                    }
+                })
+                .withFailureHandler(erro => {
+                    mostrarMensagem('Erro: ' + erro.toString(), 'erro');
+                })
+                .registerClockAction(
+                    usuario.userId || usuario.idFuncionario,
+                    usuario.userName || usuario.name,
+                    proximaAcao,
+                    localizacao
+                );
+        }
+
+        // ==========================================
+        // MENSAGENS
+        // ==========================================
+        function mostrarMensagem(texto, tipo) {
+            const el = document.getElementById('mensagem');
+            el.className = 'mensagem ' + tipo;
+            el.textContent = texto;
+        }
+        function ocultarMensagem() {
+            document.getElementById('mensagem').className = 'mensagem';
+        }
+
+        // ==========================================
+        // AÇÕES SECUNDÁRIAS
+        // ==========================================
+        function verHistorico() {
+            alert('Histórico — funcionalidade em desenvolvimento');
+        }
+        function gerarRelatorio() {
+            alert('Relatório PDF — funcionalidade em desenvolvimento');
+        }
+        function sair() {
+            sessionStorage.removeItem('usuarioLogado');
+            window.location.href = '?page=login';
+        }
+
+        // ==========================================
+        // INICIAR
+        // ==========================================
+        atualizarRelogio();
+        setInterval(atualizarRelogio, 1000);
+        window.onload = carregarPagina;
+    </script>
+</body>
+</html>

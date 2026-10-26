@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ajustes — Controle de Ponto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #2563EB; --primary-dark: #1D4ED8; --success: #10B981;
+            --bg-gradient: linear-gradient(180deg, #EFF6FF 0%, #E0EFFF 40%, #DBEAFE 100%);
+            --card-bg: rgba(255,255,255,0.85); --border: #BFDBFE; --shadow: 0 4px 15px rgba(37,99,235,0.1);
+            --text: #1E293B; --text-muted: #64748B;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-gradient); min-height: 100vh; padding-bottom: 90px; color: var(--text); }
+        .top-header { position: sticky; top:0; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 16px 20px; box-shadow: 0 4px 15px rgba(37,99,235,0.25); }
+        .top-header h1 { font-size: 18px; font-weight: 700; }
+        .container { padding: 16px; max-width: 600px; margin: 0 auto; }
+        .card { background: var(--card-bg); backdrop-filter: blur(8px); border-radius: 20px; padding: 20px; margin-bottom: 16px; border: 1px solid var(--border); box-shadow: var(--shadow); }
+        .section-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; color: var(--primary-dark); }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+        .form-group input[type="number"], .form-group input[type="text"] {
+            width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 10px;
+            font-size: 15px; background: white;
+        }
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .toggle-row:last-child { border-bottom: none; }
+        .toggle-label { font-weight: 500; }
+        .toggle-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .toggle-switch {
+            position: relative; width: 50px; height: 28px; background: #CBD5E1; border-radius: 14px; cursor: pointer; transition: 0.3s;
+        }
+        .toggle-switch.active { background: var(--primary); }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+            background: white; border-radius: 50%; transition: 0.3s;
+        }
+        .toggle-switch.active::after { transform: translateX(22px); }
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; margin-top: 10px; }
+        .msg-sucesso { background: #ECFDF5; color: #065F46; padding: 12px; border-radius: 10px; margin-bottom: 16px; display: none; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid var(--border); z-index: 100; box-shadow: 0 -4px 15px rgba(37,99,235,0.12); }
+        .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10px; }
+        .nav-btn i { font-size: 20px; }
+        .nav-btn.active { color: var(--primary); font-weight: 600; }
+    </style>
+</head>
+<body>
+    <header class="top-header"><h1>⚙️ Ajustes do Sistema</h1></header>
+    
+    <div class="container">
+        <div class="card">
+            <div class="msg-sucesso" id="sucesso"><i class="fas fa-check-circle"></i> Configurações salvas com sucesso!</div>
+            
+            <div class="section-title">📌 Horários</div>
+            <div class="form-group">
+                <label>Carga horária diária padrão (horas)</label>
+                <input type="number" id="cargaHorariaDia" min="4" max="12" value="8">
+            </div>
+            
+            <div class="section-title">📅 Funcionamento</div>
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Permitir registro no sábado</div>
+                    <div class="toggle-desc">Se desativado, só Entrada e Saída serão permitidas aos sábados</div>
+                </div>
+                <div class="toggle-switch" id="permiteSabado" onclick="alternar('permiteSabado')"></div>
+            </div>
+            
+            <div class="toggle-row">
+                <div>
+                    <div class="toggle-label">Notificações de horas-extras</div>
+                    <div class="toggle-desc">Alertar quando o funcionário ultrapassar a carga diária</div>
+                </div>
+                <div class="toggle-switch active" id="notificacoes" onclick="alternar('notificacoes')"></div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="salvar()">
+                <i class="fas fa-save"></i> Salvar Configurações
+            </button>
+        </div>
+        
+        <div class="card">
+            <div class="section-title">ℹ️ Informações do Sistema</div>
+            <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">
+                <strong>Versão:</strong> 2.0 Completa<br>
+                <strong>Planilha:</strong> Controle de Ponto<br>
+                <strong>Fuso:</strong> America/Sao_Paulo<br>
+                <strong>Status:</strong> ✅ Operacional
+            </p>
+        </div>
+    </div>
+    
+    <nav class="bottom-nav">
+        <a href="?page=geral" class="nav-btn"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+        <a href="?page=equipe" class="nav-btn"><i class="fas fa-users"></i> Equipe</a>
+        <a href="?page=registros" class="nav-btn"><i class="fas fa-clipboard-list"></i> Registros</a>
+        <a href="?page=ajustes" class="nav-btn active"><i class="fas fa-cog"></i> Ajustes</a>
+    </nav>
+    
+    <script>
+        let config = { cargaHorariaDia: 8, permitirSabado: false, notificacoes: true };
+        
+        function navegarPara(p) { window.location.href = '?page=' + p; }
+        
+        function carregarConfig() {
+            google.script.run
+                .withSuccessHandler(dados => {
+                    config = dados;
+                    document.getElementById('cargaHorariaDia').value = config.cargaHorariaDia;
+                    aplicarToggle('permiteSabado', config.permitirSabado);
+                    aplicarToggle('notificacoes', config.notificacoes);
+                })
+                .carregarConfiguracoes();
+        }
+        
+        function alternar(id) {
+            config[id] = !config[id];
+            aplicarToggle(id, config[id]);
+        }
+        
+        function aplicarToggle(id, valor) {
+            const el = document.getElementById(id);
+            if (valor) el.classList.add('active');
+            else el.classList.remove('active');
+        }
+        
+        function salvar() {
+            config.cargaHorariaDia = parseInt(document.getElementById('cargaHorariaDia').value) || 8;
+            
+            google.script.run
+                .withSuccessHandler(() => {
+                    const msg = document.getElementById('sucesso');
+                    msg.style.display = 'block';
+                    setTimeout(() => msg.style.display = 'none', 3000);
+                })
+                .salvarConfiguracoes(config);
+        }
+        
+        window.onload = carregarConfig;
+    </script>
+</body>
+</html>

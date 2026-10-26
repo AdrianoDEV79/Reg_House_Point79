@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Controle de Ponto</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1E40AF; --accent: #3B82F6; --highlight: #60A5FA;
+            --bg-dark: #0F172A; --bg-light: #1E293B;
+            --text: #F8FAFC; --text-muted: #94A3B8;
+            --input-bg: rgba(255,255,255,0.08);
+            --glow: rgba(59,130,246,0.35);
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            padding: 20px; position: relative; overflow: hidden;
+        }
+        body::before {
+            content: ''; position: absolute; width: 600px; height: 600px;
+            background: radial-gradient(circle, rgba(59,130,246,0.15), transparent 70%);
+            top: -200px; right: -150px; pointer-events: none;
+        }
+        .login-card {
+            background: rgba(30,41,59,0.7); backdrop-filter: blur(20px);
+            border: 1px solid rgba(96,165,250,0.2); border-radius: 28px;
+            padding: 44px 32px; width: 100%; max-width: 420px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3), 0 0 40px var(--glow);
+            position: relative; z-index: 1;
+        }
+        .brand { text-align: center; margin-bottom: 40px; }
+        .logo {
+            width: 80px; height: 80px;
+            background: linear-gradient(135deg, var(--highlight), var(--accent));
+            border-radius: 24px; display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 18px; color: white; font-size: 34px;
+            box-shadow: 0 0 30px var(--glow);
+        }
+        .brand h1 { font-size: 24px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+        .brand p { font-size: 14px; color: var(--text-muted); }
+        .form-group { margin-bottom: 22px; }
+        .form-group label {
+            display: block; font-size: 13px; font-weight: 500; color: var(--text-muted);
+            margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .input-wrapper { position: relative; }
+        .input-wrapper i {
+            position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+            color: var(--highlight); font-size: 18px;
+        }
+        .form-input {
+            width: 100%; padding: 16px 16px 16px 52px;
+            background: var(--input-bg); border: 1px solid rgba(96,165,250,0.25);
+            border-radius: 14px; font-size: 15px; color: var(--text);
+            transition: all 0.3s ease;
+        }
+        .form-input::placeholder { color: var(--text-muted); }
+        .form-input:focus {
+            outline: none; border-color: var(--highlight);
+            box-shadow: 0 0 0 3px rgba(96,165,250,0.15), inset 0 0 20px rgba(96,165,250,0.05);
+        }
+        .btn-login {
+            width: 100%; padding: 16px;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            color: white; border: none; border-radius: 14px; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.3s ease; margin-top: 10px;
+        }
+        .btn-login:hover {
+            transform: translateY(-3px); box-shadow: 0 10px 30px rgba(59,130,246,0.4);
+        }
+        .btn-login:active { transform: translateY(0); }
+        .mensagem { padding: 12px; border-radius: 10px; margin-top: 16px; display: none; font-size: 14px; text-align: center; }
+        .mensagem.erro { background: rgba(239,68,68,0.15); color: #FCA5A5; border: 1px solid rgba(239,68,68,0.25); display: block; }
+        .mensagem.sucesso { background: rgba(16,185,129,0.15); color: #6EE7B7; border: 1px solid rgba(16,185,129,0.25); display: block; }
+        .footer-text { text-align: center; margin-top: 28px; font-size: 12px; color: var(--text-muted); opacity: 0.7; }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="brand">
+            <div class="logo"><i class="fas fa-clock"></i></div>
+            <h1>Controle de Ponto</h1>
+            <p>Faça login para acessar</p>
+        </div>
+
+        <form id="formLogin">
+            <div class="form-group">
+                <label for="username">Nome de Usuário</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-user"></i>
+                    <input type="text" id="username" name="username" class="form-input" placeholder="Digite seu usuário" required autocomplete="username">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="password">Senha</label>
+                <div class="input-wrapper">
+                    <i class="fas fa-lock"></i>
+                    <input type="password" id="password" name="password" class="form-input" placeholder="Digite sua senha" required autocomplete="current-password">
+                </div>
+            </div>
+            <button type="submit" class="btn-login" id="btnEntrar">
+                <i class="fas fa-arrow-right"></i> Entrar no Sistema
+            </button>
+        </form>
+
+        <div class="mensagem" id="mensagem"></div>
+
+        <div class="footer-text">
+            Versão 2.0 • Controle de Ponto © 2026
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('formLogin').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const msg = document.getElementById('mensagem');
+            const btn = document.getElementById('btnEntrar');
+            
+            // Limpar mensagem
+            msg.className = 'mensagem';
+            msg.style.display = 'none';
+            
+            // Bloquear botão
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Entrando...';
+
+            // ✅ CHAMANDO A FUNÇÃO COM O NOME CORRETO: processLogin
+            google.script.run
+                .withSuccessHandler(function(resposta) {
+                    if (resposta && resposta.success) {
+                        // Salvar sessão com os dados retornados
+                        sessionStorage.setItem('usuarioLogado', JSON.stringify(resposta));
+                        msg.className = 'mensagem sucesso';
+                        msg.textContent = 'Bem-vindo, ' + (resposta.name || resposta.userName) + '! Redirecionando...';
+                        // Redirecionar após pequeno delay
+                        setTimeout(() => {
+                            window.location.href = '?page=regPonto';
+                        }, 800);
+                    } else {
+                        msg.className = 'mensagem erro';
+                        msg.textContent = (resposta && resposta.message) || 'Usuário ou senha inválidos';
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-arrow-right"></i> Entrar no Sistema';
+                    }
+                })
+                .withFailureHandler(function(erro) {
+                    msg.className = 'mensagem erro';
+                    msg.textContent = 'Erro de conexão: ' + erro.toString();
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-arrow-right"></i> Entrar no Sistema';
+                })
+                .processLogin(username, password); // ✅ Nome correto da função!
+        });
+    </script>
+</body>
+</html>
