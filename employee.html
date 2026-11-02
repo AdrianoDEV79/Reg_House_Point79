@@ -207,13 +207,20 @@
         // RELÓGIO EM TEMPO REAL
         // ==========================================
         function atualizarRelogio() {
-            const agora = new Date();
-            document.getElementById('relogio').textContent = 
-                agora.toLocaleTimeString('pt-BR', {hour12: false});
-            document.getElementById('dataCompleta').textContent = 
-                agora.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
-            document.getElementById('dataHoje').textContent = 
-                agora.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+            try {
+                const agora = new Date();
+                const relogioEl = document.getElementById('relogio');
+                if (relogioEl) relogioEl.textContent = 
+                    agora.toLocaleTimeString('pt-BR', {hour12: false});
+                const dataCompletaEl = document.getElementById('dataCompleta');
+                if (dataCompletaEl) dataCompletaEl.textContent = 
+                    agora.toLocaleDateString('pt-BR', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+                const dataHojeEl = document.getElementById('dataHoje');
+                if (dataHojeEl) dataHojeEl.textContent = 
+                    agora.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'numeric'});
+            } catch (e) {
+                console.error('Erro no relógio:', e);
+            }
         }
 
         // ==========================================
@@ -302,14 +309,25 @@
                     .getLatestEmployeeRecord(usuario.userId);
                 
                 console.log('[DEBUG] carregarPagina() concluído');
+                
+                // Garantir que algo esteja visível na tela
+                const statusDiaEl = document.getElementById('statusDia');
+                if (statusDiaEl && !statusDiaEl.textContent) {
+                    statusDiaEl.textContent = 'Página carregada ✅';
+                }
             } catch (error) {
                 console.error('ERRO FATAL em carregarPagina:', error);
+                
+                // Mostrar erro na tela de forma visível
+                const corpo = document.querySelector('.container');
+                if (corpo) {
+                    corpo.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><strong>Erro ao carregar a tela:</strong><br>' + error.toString() + '</div>';
+                }
                 const msgEl = document.getElementById('mensagem');
                 if (msgEl) {
                     msgEl.className = 'mensagem erro';
                     msgEl.textContent = 'Erro ao carregar a tela: ' + error.toString();
                 }
-                // Também tentar mostrar no statusDia
                 const statusDiaEl = document.getElementById('statusDia');
                 if (statusDiaEl) statusDiaEl.textContent = 'ERRO: ' + error.toString();
             }
@@ -467,9 +485,19 @@
         // ==========================================
         // INICIAR
         // ==========================================
-        atualizarRelogio();
+        // Garantir que o body seja visível
+        document.body.style.display = 'block';
+        document.documentElement.style.display = 'block';
+        
+        // Inicializar relógio dentro do carregarPagina para evitar erro antes do onload
         setInterval(atualizarRelogio, 1000);
         window.onload = carregarPagina;
+        // Também executar imediatamente caso o onload já tenha disparado
+        if (document.readyState === 'loading') {
+            window.onload = carregarPagina;
+        } else {
+            carregarPagina();
+        }
     </script>
 </body>
 </html>
