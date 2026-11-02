@@ -26,16 +26,16 @@ function doGet(e) {
       return HtmlService.createTemplateFromFile('admin').evaluate()
         .setTitle('Admin - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    } else if (e && e.parameter.page === 'equipe') {
-      return HtmlService.createTemplateFromFile('equipe').evaluate()
+    } else if (e && e.parameter.page === 'Equipe') {
+      return HtmlService.createTemplateFromFile('Equipe').evaluate()
         .setTitle('Equipe - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    } else if (e && e.parameter.page === 'registros') {
-      return HtmlService.createTemplateFromFile('registros').evaluate()
+    } else if (e && e.parameter.page === 'Registros') {
+      return HtmlService.createTemplateFromFile('Registros').evaluate()
         .setTitle('Registros - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    } else if (e && e.parameter.page === 'ajustes') {
-      return HtmlService.createTemplateFromFile('ajustes').evaluate()
+    } else if (e && e.parameter.page === 'Ajustes') {
+      return HtmlService.createTemplateFromFile('Ajustes').evaluate()
         .setTitle('Ajustes - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
     } else if (e && e.parameter.page === 'regPonto') {
