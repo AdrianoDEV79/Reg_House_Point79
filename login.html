@@ -1,3 +1,5 @@
+// Versão @28
+<!DOCTYPE html>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -126,7 +128,8 @@
             
             // Limpar mensagem
             msg.className = 'mensagem';
-            msg.style.display = 'none';
+            // Removido msg.style.display = 'none' que estava bloqueando a exibição
+            // O estilo da mensagem é controlado pela classe CSS e pela alteração posterior
             
             // Bloquear botão
             btn.disabled = true;

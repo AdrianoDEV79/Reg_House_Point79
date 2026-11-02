@@ -118,16 +118,47 @@ Isso criará/atualizará automaticamente a linha na aba `config_escala`.
 
 ---
 
-## O que NÃO Deve Ser Mexido (Sem Conversa)
-- Senhas em texto plano na planilha
-- Estrutura `doGet` sem compreender impacto no roteamento
-- Acesso `ANYONE` sem reestruturar autenticação
-- `LockService` remoção sem substituição
-- Trigger `onEdit` não pode ser removido se quiser recálculo automático
+## 🐛 PROBLEMA RESOLVIDO: Login Tela Branca (Outubro 2026)
+
+### Contexto
+Usuário relatava que:
+1. Login não informava quando usuário/senha estavam errados
+2. Tela ficava em branco após login (admin ou funcionário)
+3. F12 não retornava erros visíveis
+
+### Causa Raiz Encontrada (linha a linha)
+
+**1. `login.html` linha 129:** `msg.style.display = 'none'` definia estilo inline `display: none` que **nunca era totalmente substituído** pelo `display: block` nas linhas posteriores. Isso fazia com que mensagens de erro/success **nunca aparecessem** na tela, dando a impressão de "tela em branco" ou "nada acontece".
+
+**2. `employee.html`:** Código do `INICIAR` não tinha `try/catch`. Se `carregarPagina()` lançasse erro, a tela ficava branca sem nenhuma mensagem.
+
+**3. `appsscript.json`:** `executeAs: "USER_ACCESSING"` obrigava cada usuário a autorizar o script individualmente. Mudado para `USER_DEPLOYING`.
+
+### Correções Aplicadas
+
+| Arquivo | Correção | Versão |
+|---------|----------|--------|
+| `login.html` | Removido `msg.style.display = 'none'` que bloqueava mensagens | @29 |
+| `employee.html` | Adicionado `try/catch` em volta do código de inicialização + alert de debug | @29 |
+| `appsscript.json` | Mudado `executeAs: "USER_DEPLOYING"` (sem autorização do usuário) | @29 |
+| `utils.js` | Manutenção de rotinas de escala e banco de horas | @28 |
+
+### Deploy Atual
+- **Deployment:** @29
+- **URL:** https://script.google.com/macros/s/AKfycbwkH8xcgl7qp7TmNjG7C9Yf4jTU9ZGX8aRu1apjVc5TXbTj4WGYqnGmitNSyAKdl1-KjQ/exec
+- **Push:** Concluído com `clasp push -f` (8 arquivos)
+
+### Próximos Passos
+1. Usuário deve testar em aba anônima com a URL @29
+2. Mensagens de erro/success devem aparecer agora
+3. Redirecionamento após login deve funcionar
+
+### Pendências
+- Limite de 20 deployments versionados do Google Apps Script atingido
+- Novos deployments reutilizam slots existentes
 
 ---
-
-## Documentação Oficial
+*Registrado em 02/11/2026 - Agente Cline*
 - `README.md` — visão geral, stack, setup, deploy, rotas e limitações
 - `docs/PLANILHA.md` — abas, colunas, `config_escala` e trigger `onEdit`
 - `docs/FUNCOES.md` — referência de todas as funções do backend

@@ -1,3 +1,5 @@
+// Versão @28
+// ============================================================
 // ============================================================
 // SISTEMA DE CONTROLE DE PONTO - GOOGLE APPS SCRIPT
 // VERSÃO COMPLETA — com todas as páginas

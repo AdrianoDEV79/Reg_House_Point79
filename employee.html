@@ -1,3 +1,5 @@
+// Versão @28
+<!DOCTYPE html>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -482,9 +484,11 @@
             window.location.href = '?page=login';
         }
 
+        alert('DEBUG: employee.html ESTÁ RODANDO!');
         // ==========================================
         // INICIAR
         // ==========================================
+        try {
         // Garantir que o body seja visível
         document.body.style.display = 'block';
         document.documentElement.style.display = 'block';
@@ -498,6 +502,17 @@
         } else {
             carregarPagina();
         }
+} catch (erro) {
+        console.error('[ERRO FATAL employee.html]', erro);
+        document.body.style.display = 'block';
+        document.documentElement.style.display = 'block';
+        const container = document.getElementById('container');
+        if (container) {
+            container.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><h3>Erro ao carregar página</h3><p>' + erro.toString() + '</p></div>';
+        } else {
+            document.body.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><h3>Erro ao carregar página</h3><p>' + erro.toString() + '</p></div>';
+        }
+    }
     </script>
 </body>
 </html>
