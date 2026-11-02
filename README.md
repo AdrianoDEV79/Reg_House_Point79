@@ -62,7 +62,7 @@ O sistema é vinculado a **uma planilha específica** (`SpreadsheetApp.getActive
 - **Edição de registros pelo sistema**: o admin corrige entrada, intervalos e saída em uma janela própria, sem tocar na planilha. O total é recalculado e o motivo (opcional) fica registrado em `observacoes`.
 - Lista da equipe com busca por nome/usuário.
 - Ajustes: carga horária padrão, permissão de sábado, notificações.
-- **Escala por funcionário**: tipo de escala, dias de folga, carga diária e carga de sábado.
+- **Escala por funcionário**: tipo de escala, dias de folga, carga diária e carga de sábado. Ao selecionar o funcionário, a tela carrega a configuração já salva.
 
 ### Automações
 - `totalHoras` recalculado automaticamente no registro e em cada edição feita pelo sistema.
@@ -323,13 +323,12 @@ Este é um sistema interno e algumas decisões são simplificadas de propósito.
 Itens conhecidos, em ordem sugerida:
 
 1. Exibir `cargaHorariaPrevista` e `bancoHorasTotal` no dashboard (hoje "Carga Prevista" está fixa em `176h`).
-2. Carregar a escala salva ao selecionar o funcionário em `Ajustes.html`.
-3. Revisar o cálculo de carga prevista do mês (multiplicar pelos dias úteis, não somar uma carga diária por funcionário).
-4. Incluir faltas, feriados e carga de sábado no banco de horas.
-5. Implementar "Ver Histórico", "Gerar Relatório" e "Exportar Relatório" (hoje são `alert`).
-6. Cadastrar as escalas no ambiente de produção (a aba `config_escala` já pode ser criada pela tela de Ajustes).
-7. Adicionar verificação de perfil no servidor para as funções administrativas, incluindo `atualizarRegistro`.
-8. Avaliar hash de senhas e sessão assinada no servidor.
+2. Revisar o cálculo de carga prevista do mês (multiplicar pelos dias úteis, não somar uma carga diária por funcionário).
+3. Incluir faltas, feriados e carga de sábado no banco de horas.
+4. Implementar "Ver Histórico", "Gerar Relatório" e "Exportar Relatório" (hoje são `alert`).
+5. Preencher as escalas reais dos funcionários em `Ajustes → Escala por Funcionário`.
+6. Adicionar verificação de perfil no servidor para as funções administrativas, incluindo `atualizarRegistro`.
+7. Avaliar hash de senhas e sessão assinada no servidor.
 
 ---
 

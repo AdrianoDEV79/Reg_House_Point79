@@ -289,12 +289,13 @@ A versão 2.1 adicionou:
 7. **`parseDateBR` / `formatDateBR`** — conversão de data centralizada e sem ambiguidade.
 8. **Edição de registros pelo sistema** — modal em `Registros.html` + `atualizarRegistro` com validação, lock e recálculo.
 9. **Registro de motivo da alteração** na coluna `observacoes`.
+10. **Carregamento da escala salva em Ajustes** — ao selecionar o funcionário, os campos são preenchidos; `parseFolgas` aceita vírgula ou ponto.
 
 ### Pontos de atenção da implementação
 
 - `cargaHorariaPrevista` no dashboard soma a carga diária uma vez por funcionário.
 - O banco de horas usa dias trabalhados como base de carga prevista.
-- A tela de Ajustes não recarrega a escala já salva ao trocar o funcionário.
+- A carga de sábado ainda não entra no banco de horas.
 - A edição não valida o perfil do usuário no servidor.
 
 Correções sugeridas estão no [README](../README.md#pendências-e-roadmap).

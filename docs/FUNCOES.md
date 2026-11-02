@@ -108,20 +108,29 @@ Calcula a jornada líquida:
 
 ## Escala 5x2
 
+### `parseFolgas(valor)`
+
+Converte a coluna `folgas` em array de dias da semana.
+
+- Aceita `"3,7"`, `"3.7"` (caso a célula tenha virado número), `"1, 3, 7"` e valores numéricos como `3.7`.
+- Mantém apenas inteiros de `1` a `7` e remove duplicados.
+- Se nada válido for encontrado, devolve o padrão `[3, 7]`.
+
 ### `getEscalaFuncionario(employeeId)`
 
 Lê a aba `config_escala` e retorna a configuração do funcionário.
 
 ```js
 // Encontrado
-{ tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8, cargaSabado: 0 }
+{ tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8, cargaSabado: 0, salva: true }
 
 // Não encontrado / erro / aba ausente
-{ tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8 }
+{ tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8, cargaSabado: 0, salva: false }
 ```
 
 - Faz leitura completa da aba a cada chamada (sem cache).
-- `folgas` é convertido de `"3,7"` para `[3, 7]`.
+- `folgas` é convertido por `parseFolgas` (aceita vírgula ou ponto).
+- `salva` indica se existe uma linha para o funcionário; a tela de Ajustes usa isso para avisar quando está mostrando o padrão.
 
 ### `isDiaFolga(employeeId, dataStr)`
 

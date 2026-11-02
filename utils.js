@@ -200,26 +200,44 @@ function calculateTotalHours(entradaStr, saidaIntervaloStr, retornoIntervaloStr,
 // ESCALA 5X2 - CONFIGURAÇÃO E VALIDAÇÃO DE FOLGAS
 // ============================================================
 
+// Aceita "3,7", "3.7" (quando a célula virou número) e "1, 3, 7".
+function parseFolgas(valor) {
+  if (valor === null || valor === undefined || valor === '') return [3, 7];
+  const texto = String(valor).trim();
+  if (!texto) return [3, 7];
+  const numeros = [];
+  texto.split(/[,.]/).forEach(parte => {
+    const n = parseInt(parte.trim(), 10);
+    if (!isNaN(n) && n >= 1 && n <= 7 && numeros.indexOf(n) === -1) {
+      numeros.push(n);
+    }
+  });
+  return numeros.length ? numeros : [3, 7];
+}
+
 function getEscalaFuncionario(employeeId) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const escalaSheet = ss.getSheetByName('config_escala');
-    if (!escalaSheet) return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8 };
+    if (!escalaSheet) {
+      return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8, cargaSabado: 0, salva: false };
+    }
     const dados = escalaSheet.getDataRange().getValues();
     for (let i = 1; i < dados.length; i++) {
       if (String(dados[i][0]) === String(employeeId)) {
         return {
           tipo: dados[i][1] || '5x2_40h',
-          folgas: dados[i][2] ? String(dados[i][2]).split(',').map(Number) : [3, 7],
+          folgas: parseFolgas(dados[i][2]),
           cargaDiaria: dados[i][3] || 8,
-          cargaSabado: dados[i][4] || 0
+          cargaSabado: dados[i][4] || 0,
+          salva: true
         };
       }
     }
-    return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8 };
+    return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8, cargaSabado: 0, salva: false };
   } catch (e) {
     Logger.log('ERRO getEscalaFuncionario: ' + e.toString());
-    return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8 };
+    return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8, cargaSabado: 0, salva: false };
   }
 }
 
@@ -275,7 +293,7 @@ function getTodasEscalas() {
     return dados.slice(1).map(row => ({
       idFuncionario: row[0],
       tipo: row[1] || '5x2_40h',
-      folgas: row[2] ? String(row[2]).split(',').map(Number) : [3, 7],
+      folgas: parseFolgas(row[2]),
       cargaDiaria: row[3] || 8,
       cargaSabado: row[4] || 0
     }));

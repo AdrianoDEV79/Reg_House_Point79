@@ -164,7 +164,9 @@ Na página **Ajustes** (`?page=ajustes`):
 4. Informe a carga diária e a de sábado.
 5. Clique em **Salvar Escala do Funcionário**.
 
-> A tela atualmente não recarrega a escala já salva ao selecionar o funcionário; os campos voltam ao padrão. A edição pode ser feita diretamente na aba `config_escala`.
+> Ao selecionar o funcionário, a tela carrega a escala já salva. Se não houver configuração, os campos mostram o padrão (`3,7`, 8h, 0h) e um aviso indica que nada foi salvo ainda.
+>
+> A coluna `folgas` pode ser texto (`3,7`) ou número (`3.7`): `parseFolgas` entende os dois formatos. Ainda assim, o ideal é manter a coluna como **texto** para evitar interpretações do Sheets.
 
 ### 5. Corrigir registros
 

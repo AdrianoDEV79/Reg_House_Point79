@@ -29,6 +29,8 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
   - Função `atualizarRegistro` com validação de formato e ordem cronológica, `LockService` e recálculo do total.
   - Motivo da alteração gravado em `observacoes` com data/hora.
 - **`parseDateBR` e `formatDateBR`**: conversão centralizada de datas (`dd/MM/yyyy`, `dd-MM-yyyy`, `dd.MM.yyyy` e ISO), com validação de datas impossíveis.
+- **`parseFolgas`**: converte a coluna `folgas` em array, aceitando vírgula (`3,7`), ponto (`3.7`, quando a célula virou número) e removendo duplicados.
+- **Carregamento da escala salva em Ajustes**: ao selecionar o funcionário, tipo, folgas e cargas são preenchidos automaticamente; se não houver configuração, a tela avisa que está mostrando o padrão.
 - Validação de ordem dos horários também no cliente (entrada e par de intervalo).
 
 ### Corrigido
@@ -38,11 +40,15 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 - `getLatestEmployeeRecord`, `getWorkingEmployees`, `getDashboardData`, `getRegistrosFiltrados` e `calcularBancoHoras` passam a usar a mesma conversão de data, evitando registros duplicados e meses errados.
 - O filtro de registros por período agora compara datas de verdade e funciona corretamente entre meses e anos.
 - Datas em ISO (`yyyy-MM-dd`) não sofrem mais deslocamento de um dia pelo fuso.
+- Cargas decimais (ex.: `8.8` e `4.5`) não são mais truncadas pelo `parseInt` ao salvar a escala.
+- Folgas salvas como número (`3.7`) passam a ser lidas como `[3, 7]`.
 
 ### Alterado
 
 - O trigger `onEdit` passou a ser **opcional**: o fluxo normal de edição é pela tela `Registros`.
 - `Registros.html` ganhou modal de edição, banner de confirmação e tratamento de erro na busca.
+- `getEscalaFuncionario` passou a devolver `salva: true/false` para a tela distinguir configuração existente de padrão.
+- A tela de Ajustes recarrega a escala após salvar e trata erro na resposta do backend.
 
 ---
 

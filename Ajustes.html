@@ -42,6 +42,7 @@
         .btn { width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; }
         .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; margin-top: 10px; }
         .msg-sucesso { background: #ECFDF5; color: #065F46; padding: 12px; border-radius: 10px; margin-bottom: 16px; display: none; }
+        .info-escala { display: none; font-size: 12px; color: var(--text-muted); margin: -8px 0 14px; line-height: 1.4; }
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card-bg); backdrop-filter: blur(10px); display: flex; justify-content: space-around; padding: 10px 0; border-top: 1px solid var(--border); z-index: 100; box-shadow: 0 -4px 15px rgba(37,99,235,0.12); }
         .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--text-muted); text-decoration: none; font-size: 10px; }
         .nav-btn i { font-size: 20px; }
@@ -81,8 +82,9 @@
             <div class="section-title">👥 Escala por Funcionário</div>
             <div class="form-group">
                 <label>Selecione o funcionário</label>
-                <select id="escalaFuncionario" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:15px;background:white;"></select>
+                <select id="escalaFuncionario" onchange="carregarEscalaSelecionada()" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:15px;background:white;"></select>
             </div>
+            <div id="escalaInfo" class="info-escala"></div>
             <div class="form-group">
                 <label>Tipo de escala</label>
                 <select id="escalaTipo" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:15px;background:white;">
@@ -99,11 +101,11 @@
             </div>
             <div class="form-group">
                 <label>Carga horária diária (horas)</label>
-                <input type="number" id="escalaCargaDia" min="4" max="12" value="8">
+                <input type="number" id="escalaCargaDia" min="4" max="12" step="0.5" value="8">
             </div>
             <div class="form-group">
                 <label>Carga horária sábado (horas, 0 se não trabalha)</label>
-                <input type="number" id="escalaCargaSabado" min="0" max="12" value="0">
+                <input type="number" id="escalaCargaSabado" min="0" max="12" step="0.5" value="0">
             </div>
             <button class="btn btn-primary" onclick="salvarEscalaFunc()">
                 <i class="fas fa-save"></i> Salvar Escala do Funcionário
@@ -118,7 +120,7 @@
         <div class="card">
             <div class="section-title">ℹ️ Informações do Sistema</div>
             <p style="font-size:13px; color:var(--text-muted); line-height:1.6;">
-                <strong>Versão:</strong> 2.0 Completa<br>
+                <strong>Versão:</strong> 2.1<br>
                 <strong>Planilha:</strong> Controle de Ponto<br>
                 <strong>Fuso:</strong> America/Sao_Paulo<br>
                 <strong>Status:</strong> ✅ Operacional
@@ -181,34 +183,112 @@
                 .withSuccessHandler(funcionarios => {
                     const select = document.getElementById('escalaFuncionario');
                     select.innerHTML = '<option value="">-- Selecionar --</option>';
-                    funcionarios.forEach(f => {
+                    (funcionarios || []).forEach(f => {
                         select.innerHTML += `<option value="${f.id}">${f.nome || f.usuario} (${f.usuario})</option>`;
                     });
                 })
+                .withFailureHandler(erro => {
+                    const info = document.getElementById('escalaInfo');
+                    info.textContent = 'Erro ao carregar funcionários: ' + erro.toString();
+                    info.style.display = 'block';
+                })
                 .getListaUsuarios();
         }
-        
+
+        function aplicarEscalaPadrao() {
+            document.getElementById('escalaTipo').value = '5x2_40h';
+            document.getElementById('escalaFolgas').value = '3,7';
+            document.getElementById('escalaCargaDia').value = 8;
+            document.getElementById('escalaCargaSabado').value = 0;
+        }
+
+        function carregarEscalaSelecionada() {
+            const select = document.getElementById('escalaFuncionario');
+            const info = document.getElementById('escalaInfo');
+            const funcionarioId = select.value;
+
+            if (!funcionarioId) {
+                aplicarEscalaPadrao();
+                info.textContent = '';
+                info.style.display = 'none';
+                return;
+            }
+
+            info.textContent = 'Carregando escala...';
+            info.style.display = 'block';
+
+            google.script.run
+                .withSuccessHandler(escala => {
+                    // Ignora resposta atrasada de uma seleção anterior
+                    if (select.value !== funcionarioId) return;
+
+                    const tipoSelect = document.getElementById('escalaTipo');
+                    const tipo = escala && escala.tipo ? String(escala.tipo) : '5x2_40h';
+                    const existe = Array.from(tipoSelect.options).some(o => o.value === tipo);
+                    tipoSelect.value = existe ? tipo : 'personalizado';
+
+                    const folgas = escala && Array.isArray(escala.folgas) ? escala.folgas : [3, 7];
+                    document.getElementById('escalaFolgas').value = folgas.join(',');
+
+                    document.getElementById('escalaCargaDia').value =
+                        escala && escala.cargaDiaria !== undefined && escala.cargaDiaria !== ''
+                            ? escala.cargaDiaria : 8;
+
+                    document.getElementById('escalaCargaSabado').value =
+                        escala && escala.cargaSabado !== undefined && escala.cargaSabado !== ''
+                            ? escala.cargaSabado : 0;
+
+                    if (escala && escala.salva === false) {
+                        info.textContent = 'Nenhuma escala salva para este funcionário. Os campos mostram o padrão.';
+                    } else {
+                        info.textContent = 'Escala atual carregada. Altere e clique em Salvar.';
+                    }
+                })
+                .withFailureHandler(erro => {
+                    if (select.value !== funcionarioId) return;
+                    info.textContent = 'Erro ao carregar escala: ' + erro.toString();
+                })
+                .getEscalaFuncionario(funcionarioId);
+        }
+
         function salvarEscalaFunc() {
             const funcionarioId = document.getElementById('escalaFuncionario').value;
             const tipo = document.getElementById('escalaTipo').value;
             const folgasStr = document.getElementById('escalaFolgas').value;
-            const cargaDia = parseInt(document.getElementById('escalaCargaDia').value) || 8;
-            const cargaSabado = parseInt(document.getElementById('escalaCargaSabado').value) || 0;
-            
+            const cargaDia = parseFloat(document.getElementById('escalaCargaDia').value);
+            const cargaSabado = parseFloat(document.getElementById('escalaCargaSabado').value);
+
             if (!funcionarioId) {
                 alert('Selecione um funcionário');
                 return;
             }
-            
-            const folgas = folgasStr.split(',').map(f => parseInt(f.trim())).filter(f => !isNaN(f));
-            
+
+            const folgas = folgasStr.split(',')
+                .map(f => parseInt(f.trim(), 10))
+                .filter(f => !isNaN(f) && f >= 1 && f <= 7);
+
             google.script.run
-                .withSuccessHandler(() => {
+                .withSuccessHandler(resposta => {
+                    if (!resposta || !resposta.success) {
+                        alert('Erro ao salvar escala: ' +
+                            ((resposta && resposta.message) || 'resposta inválida'));
+                        return;
+                    }
                     const msg = document.getElementById('sucessoEscala');
                     msg.style.display = 'block';
                     setTimeout(() => msg.style.display = 'none', 3000);
+                    carregarEscalaSelecionada();
                 })
-                .salvarEscalaFuncionario(funcionarioId, tipo, folgas, cargaDia, cargaSabado);
+                .withFailureHandler(erro => {
+                    alert('Erro ao salvar escala: ' + erro.toString());
+                })
+                .salvarEscalaFuncionario(
+                    funcionarioId,
+                    tipo,
+                    folgas,
+                    isNaN(cargaDia) ? 8 : cargaDia,
+                    isNaN(cargaSabado) ? 0 : cargaSabado
+                );
         }
         
         window.onload = function() {
