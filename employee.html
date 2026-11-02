@@ -260,14 +260,19 @@
                 document.getElementById('statusLocalizacao').textContent = 'Navegador não suporta ❌';
             }
             
-            // Carregar último registro do dia
-            google.script.run
-                .withSuccessHandler(atualizarTelaComRegistro)
-                .withFailureHandler(function(erro) {
-                    console.error('Erro ao carregar registro:', erro);
-                    document.getElementById('statusDia').textContent = 'Erro ao carregar registro';
-                })
-                .getLatestEmployeeRecord(usuario.userId || usuario.idFuncionario);
+            // Carregar último registro do dia (apenas para funcionário, não admin)
+            if (usuario.role === 'usuario') {
+                google.script.run
+                    .withSuccessHandler(atualizarTelaComRegistro)
+                    .withFailureHandler(function(erro) {
+                        console.error('Erro ao carregar registro:', erro);
+                        document.getElementById('statusDia').textContent = 'Erro ao carregar registro';
+                    })
+                    .getLatestEmployeeRecord(usuario.userId);
+            } else {
+                // Admin: definir status padrão
+                document.getElementById('statusDia').textContent = '✅ Logado como Administrador';
+            }
         }
 
         // ==========================================

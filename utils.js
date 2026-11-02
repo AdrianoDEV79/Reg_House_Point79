@@ -74,7 +74,7 @@ function processLogin(username, password) {
         const sheetPassword = String(adminData[i][2]).trim();
         if (sheetUsername === username && sheetPassword === password) {
           Logger.log('✓ Login ADMIN bem-sucedido: ' + username);
-          return { success: true, role: 'admin', name: adminData[i][3] };
+          return { success: true, role: 'admin', name: adminData[i][3], userId: null };
         }
       }
     }
