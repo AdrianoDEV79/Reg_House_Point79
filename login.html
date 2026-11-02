@@ -139,6 +139,7 @@
                         // Salvar sessão com os dados retornados
                         sessionStorage.setItem('usuarioLogado', JSON.stringify(resposta));
                         msg.className = 'mensagem sucesso';
+                        msg.style.display = 'block';
                         msg.textContent = 'Bem-vindo, ' + (resposta.name || resposta.userName) + '! Redirecionando...';
                         // Redirecionar após pequeno delay
                         setTimeout(() => {
@@ -146,6 +147,7 @@
                         }, 800);
                     } else {
                         msg.className = 'mensagem erro';
+                        msg.style.display = 'block';
                         msg.textContent = (resposta && resposta.message) || 'Usuário ou senha inválidos';
                         btn.disabled = false;
                         btn.innerHTML = '<i class="fas fa-arrow-right"></i> Entrar no Sistema';

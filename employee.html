@@ -226,7 +226,14 @@
                 window.location.href = '?page=login';
                 return;
             }
-            usuario = JSON.parse(sessao);
+            try {
+                usuario = JSON.parse(sessao);
+            } catch (e) {
+                console.error('Erro ao ler sessão:', e);
+                sessionStorage.removeItem('usuarioLogado');
+                window.location.href = '?page=login';
+                return;
+            }
             
             // Exibir nome
             document.getElementById('nomeUsuario').textContent = 
@@ -256,6 +263,10 @@
             // Carregar último registro do dia
             google.script.run
                 .withSuccessHandler(atualizarTelaComRegistro)
+                .withFailureHandler(function(erro) {
+                    console.error('Erro ao carregar registro:', erro);
+                    document.getElementById('statusDia').textContent = 'Erro ao carregar registro';
+                })
                 .getLatestEmployeeRecord(usuario.userId || usuario.idFuncionario);
         }
 
@@ -288,6 +299,12 @@
                             proximaAcao = 'entrada';
                             atualizarBotaoPrincipal();
                         }
+                    })
+                    .withFailureHandler(function(erro) {
+                        console.error('Erro ao verificar folga:', erro);
+                        document.getElementById('statusDia').textContent = 'Aguardando entrada';
+                        proximaAcao = 'entrada';
+                        atualizarBotaoPrincipal();
                     })
                     .isDiaFolga(usuario.userId || usuario.idFuncionario, hoje);
             } else if (reg.saida) {
