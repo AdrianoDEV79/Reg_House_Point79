@@ -221,9 +221,12 @@
         // ==========================================
         function carregarPagina() {
             try {
+                console.log('[DEBUG] carregarPagina() iniciado');
+
                 // Verificar sessão
                 const sessao = sessionStorage.getItem('usuarioLogado');
                 if (!sessao) {
+                    console.log('[DEBUG] Nenhuma sessão encontrada, redirecionando para login');
                     window.location.href = '?page=login';
                     return;
                 }
@@ -236,13 +239,23 @@
                     return;
                 }
                 
+                console.log('[DEBUG] Usuário logado:', usuario);
+
                 // Exibir nome
                 const nomeEl = document.getElementById('nomeUsuario');
                 if (nomeEl) {
                     nomeEl.textContent = 'Bem-vindo, ' + (usuario.userName || usuario.name || 'Usuário');
                 }
                 
-                // Capturar localização
+                // Mensagem de boas-vindas para admin
+                if (usuario.role === 'admin') {
+                    const statusDiaEl = document.getElementById('statusDia');
+                    if (statusDiaEl) statusDiaEl.textContent = '✅ Logado como Administrador';
+                    console.log('[DEBUG] Admin detectado, tela configurada');
+                    return;
+                }
+
+                // Capturar localização (não bloqueia)
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         pos => {
@@ -266,28 +279,29 @@
                                 statusGeoEl.textContent = 'Não autorizada';
                                 statusGeoEl.style.color = 'var(--warning)';
                             }
-                        }
+                        },
+                        { timeout: 5000 } // timeout de 5s para não travar
                     );
                 } else {
                     const statusLocalEl = document.getElementById('statusLocalizacao');
                     if (statusLocalEl) statusLocalEl.textContent = 'Navegador não suporta ❌';
                 }
                 
-                // Carregar último registro do dia (apenas para funcionário, não admin)
-                if (usuario.role === 'usuario') {
-                    google.script.run
-                        .withSuccessHandler(atualizarTelaComRegistro)
-                        .withFailureHandler(function(erro) {
-                            console.error('Erro ao carregar registro:', erro);
-                            const statusDiaEl = document.getElementById('statusDia');
-                            if (statusDiaEl) statusDiaEl.textContent = 'Erro ao carregar registro';
-                        })
-                        .getLatestEmployeeRecord(usuario.userId);
-                } else {
-                    // Admin: definir status padrão
-                    const statusDiaEl = document.getElementById('statusDia');
-                    if (statusDiaEl) statusDiaEl.textContent = '✅ Logado como Administrador';
-                }
+                // Carregar último registro do dia (apenas para funcionário)
+                console.log('[DEBUG] Chamando getLatestEmployeeRecord com ID:', usuario.userId);
+                google.script.run
+                    .withSuccessHandler(function(reg) {
+                        console.log('[DEBUG] Registro recebido:', reg);
+                        atualizarTelaComRegistro(reg);
+                    })
+                    .withFailureHandler(function(erro) {
+                        console.error('[DEBUG] Erro ao carregar registro:', erro);
+                        const statusDiaEl = document.getElementById('statusDia');
+                        if (statusDiaEl) statusDiaEl.textContent = 'Erro ao carregar registro: ' + erro;
+                    })
+                    .getLatestEmployeeRecord(usuario.userId);
+                
+                console.log('[DEBUG] carregarPagina() concluído');
             } catch (error) {
                 console.error('ERRO FATAL em carregarPagina:', error);
                 const msgEl = document.getElementById('mensagem');
@@ -295,6 +309,9 @@
                     msgEl.className = 'mensagem erro';
                     msgEl.textContent = 'Erro ao carregar a tela: ' + error.toString();
                 }
+                // Também tentar mostrar no statusDia
+                const statusDiaEl = document.getElementById('statusDia');
+                if (statusDiaEl) statusDiaEl.textContent = 'ERRO: ' + error.toString();
             }
         }
 
