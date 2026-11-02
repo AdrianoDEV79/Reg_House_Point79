@@ -37,7 +37,7 @@ O funcionário faz login, registra entrada, intervalos e saída; o administrador
 | **Sessão** | `sessionStorage` no navegador (não há sessão no servidor) |
 | **Fuso horário** | `America/Sao_Paulo` |
 | **Distribuição** | `clasp` (CLI do Google Apps Script) |
-| **Versão atual** | 2.0 — ver [CHANGELOG](CHANGELOG.md) |
+| **Versão atual** | 2.1 — ver [CHANGELOG](CHANGELOG.md) |
 
 O sistema é vinculado a **uma planilha específica** (`SpreadsheetApp.getActiveSpreadsheet()`), ou seja, o script precisa estar anexado à planilha de ponto.
 
@@ -59,12 +59,14 @@ O sistema é vinculado a **uma planilha específica** (`SpreadsheetApp.getActive
 - Resumo do mês: extras, dias com hora extra e carga prevista.
 - Lista de quem está trabalhando agora.
 - Consulta de registros por período (`dataInicio` / `dataFim`).
+- **Edição de registros pelo sistema**: o admin corrige entrada, intervalos e saída em uma janela própria, sem tocar na planilha. O total é recalculado e o motivo (opcional) fica registrado em `observacoes`.
 - Lista da equipe com busca por nome/usuário.
 - Ajustes: carga horária padrão, permissão de sábado, notificações.
 - **Escala por funcionário**: tipo de escala, dias de folga, carga diária e carga de sábado.
 
 ### Automações
-- `totalHoras` recalculado automaticamente quando o admin edita as colunas de horário na planilha (trigger `onEdit`).
+- `totalHoras` recalculado automaticamente no registro e em cada edição feita pelo sistema.
+- Trigger `onEdit` **opcional**: só serve para recalcular caso alguém edite horários direto na planilha.
 - **Banco de horas** mensal por funcionário (horas trabalhadas − carga prevista).
 - Cálculo de horas extras acima da carga diária.
 
@@ -97,7 +99,7 @@ registro de ponto/
 ├── employee.html        # Página do funcionário (bater ponto)
 ├── admin.html           # Dashboard administrativo
 ├── Equipe.html          # Listagem da equipe
-├── Registros.html       # Consulta de registros por período
+├── Registros.html       # Consulta e edição de registros por período
 ├── Ajustes.html         # Configurações + escala por funcionário
 ├── AGENTS.md            # Contexto resumido para agentes de IA
 ├── mymemory.md          # Memória de alterações do projeto
@@ -191,8 +193,8 @@ Resumo; o passo a passo completo está em [`docs/PLANILHA.md`](docs/PLANILHA.md)
    - `config_escala` — escala por funcionário (criada automaticamente no primeiro salvamento, mas pode ser criada manualmente).
 2. **Preencher os cabeçalhos** exatamente na linha 1 (os dados começam na linha 2).
 3. **Cadastrar** pelo menos um admin e um funcionário.
-4. **Configurar o trigger `onEdit`** no Apps Script (Editar → Gatilhos do projeto) para o recálculo automático de `totalHoras`.
-5. **Cadastrar as escalas** em `Ajustes → Escala por Funcionário`.
+4. **Cadastrar as escalas** em `Ajustes → Escala por Funcionário`.
+5. **Opcional:** configurar o trigger `onEdit` no Apps Script apenas se alguém for editar horários diretamente na planilha. Com as edições feitas pelo sistema, ele não é necessário.
 
 ### Exemplo mínimo da aba `usuario`
 
@@ -239,6 +241,17 @@ Se a ação enviada não for a esperada, retorna `{ success: false, message: 'A�
 - No registro, uma `entrada` em dia de folga é recusada.
 - Na tela do funcionário, o botão é desabilitado e o status vira "Dia de Folga".
 
+### Edição de registros (somente pelo sistema)
+
+- Na tela **Registros**, cada linha tem um botão de edição.
+- O admin altera entrada, saída do intervalo, retorno e saída em uma janela própria.
+- O servidor valida formato, ordem cronológica e a existência do intervalo (saída + retorno juntos).
+- O `totalHoras` é recalculado automaticamente.
+- O motivo informado é anexado à coluna `observacoes` com data/hora da alteração.
+- A edição passa por `LockService` para não conflitar com um registro simultâneo.
+
+> A edição é feita pela função `atualizarRegistro`, não por edição direta de células. A tela esconde o botão de edição para quem não é admin, mas o servidor ainda não valida o perfil: quem souber chamar a função consegue editar.
+
 ### Cálculo de horas
 
 ```text
@@ -274,9 +287,11 @@ Referência completa em [`docs/FUNCOES.md`](docs/FUNCOES.md). Resumo:
 |---|---|
 | Roteamento | `doGet`, `include` |
 | Autenticação | `processLogin` |
+| Datas | `parseDateBR`, `formatDateBR` |
 | Tempo | `formatTimeForDisplay`, `formatDurationForDisplay`, `parseTime`, `timeToMinutes`, `calculateTotalHours` |
 | Escala | `getEscalaFuncionario`, `isDiaFolga`, `salvarEscalaFuncionario`, `getTodasEscalas` |
 | Recálculo | `recalcularTotalHoras`, `onEdit` |
+| Edição | `normalizarHora`, `atualizarRegistro` |
 | Banco de horas | `calcularBancoHoras`, `getBancoHoras`, `getBancoHorasTodos` |
 | Ponto | `getLatestEmployeeRecord`, `registerClockAction` |
 | Consultas | `getWorkingEmployees`, `getDashboardData`, `getListaUsuarios`, `getRegistrosFiltrados` |
@@ -295,9 +310,10 @@ Este é um sistema interno e algumas decisões são simplificadas de propósito.
 | **Acesso** | `access: ANYONE` no manifesto — qualquer conta Google alcança a URL. |
 | **Geolocalização** | Enviada pelo cliente sem validação de distância/cerco. |
 | **Autorização** | Páginas admin não verificam `role` no servidor; a separação é só pela navegação. |
+| **Edição de registros** | Feita por `atualizarRegistro`, com `LockService` e recálculo do total; não valida perfil no servidor. |
 | **Leituras** | `getDataRange().getValues()` carrega a aba inteira — pode ficar lento em planilhas grandes. |
-| **Trigger** | `onEdit` precisa ser criado manualmente; sem ele não há recálculo automático. |
-| **Datas** | Funções esperam strings `dd/MM/yyyy`. Evite `new Date('dd/MM/yyyy')`, que no V8 é interpretado como `mm/dd/yyyy`. |
+| **Trigger** | `onEdit` agora é **opcional**: só atua se alguém editar horários direto na planilha. |
+| **Datas** | Conversão centralizada em `parseDateBR` (`dd/MM/yyyy`, `dd-MM-yyyy`, `yyyy-MM-dd`), sem o parse ambíguo do V8. |
 | **Testes** | Não há suíte automatizada. |
 
 ---
@@ -306,13 +322,13 @@ Este é um sistema interno e algumas decisões são simplificadas de propósito.
 
 Itens conhecidos, em ordem sugerida:
 
-1. Corrigir o parse de data em `isDiaFolga` (usar `dd/MM/yyyy` manualmente em vez de `new Date(string)`).
-2. Exibir `cargaHorariaPrevista` e `bancoHorasTotal` no dashboard (hoje "Carga Prevista" está fixa em `176h`).
-3. Carregar a escala salva ao selecionar o funcionário em `Ajustes.html`.
-4. Revisar o cálculo de carga prevista do mês (multiplicar pelos dias úteis, não somar uma carga diária por funcionário).
-5. Incluir faltas, feriados e carga de sábado no banco de horas.
-6. Implementar "Ver Histórico", "Gerar Relatório" e "Exportar Relatório" (hoje são `alert`).
-7. Criar a aba `config_escala` e o trigger `onEdit` no ambiente de produção.
+1. Exibir `cargaHorariaPrevista` e `bancoHorasTotal` no dashboard (hoje "Carga Prevista" está fixa em `176h`).
+2. Carregar a escala salva ao selecionar o funcionário em `Ajustes.html`.
+3. Revisar o cálculo de carga prevista do mês (multiplicar pelos dias úteis, não somar uma carga diária por funcionário).
+4. Incluir faltas, feriados e carga de sábado no banco de horas.
+5. Implementar "Ver Histórico", "Gerar Relatório" e "Exportar Relatório" (hoje são `alert`).
+6. Cadastrar as escalas no ambiente de produção (a aba `config_escala` já pode ser criada pela tela de Ajustes).
+7. Adicionar verificação de perfil no servidor para as funções administrativas, incluindo `atualizarRegistro`.
 8. Avaliar hash de senhas e sessão assinada no servidor.
 
 ---

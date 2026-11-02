@@ -35,14 +35,15 @@ Registro principal. Cada linha representa **um dia de trabalho** de um funcioná
 | H | 7 | `saida` | `17:00:00` | `HH:mm:ss` |
 | I | 8 | `totalHoras` | `08:00` | `HH:mm`; recalculado pelo backend |
 | J | 9 | `geolocalizacao` | `-23.550520, -46.633308` | Texto livre enviado pelo cliente |
-| K | 10 | `observacoes` | `` | Reservado; ainda não usado pela interface |
+| K | 10 | `observacoes` | `[02/11/2026 10:30] Ajuste de horário` | Recebe o motivo das edições feitas pelo sistema |
 
 ### Regras
 
 - Um funcionário tem **no máximo um registro por dia** (validado por `getLatestEmployeeRecord`).
 - A linha é criada na primeira ação (`entrada`) e atualizada nas seguintes.
 - `totalHoras` é preenchido quando existe entrada **e** saída.
-- Ao editar as colunas E–H manualmente na planilha, o trigger `onEdit` recalcula a coluna I.
+- Ao editar as colunas E–H manualmente na planilha, o trigger `onEdit` (opcional) recalcula a coluna I.
+- As edições feitas pelo sistema (tela **Registros**) também recalculam a coluna I automaticamente.
 
 ### Exemplo
 
@@ -128,15 +129,15 @@ Configuração de escala por funcionário. Se a aba não existir, `salvarEscalaF
 
 ---
 
-## Configuração manual obrigatória
+## Configuração manual
 
 ### 1. Criar as abas
 
 No Google Sheets, crie as abas com os nomes exatos. A aba `config_escala` pode ser criada automaticamente ao salvar a primeira escala em **Ajustes**, mas criar manualmente evita surpresas.
 
-### 2. Configurar o trigger `onEdit`
+### 2. Configurar o trigger `onEdit` (opcional)
 
-Necessário para recalcular `totalHoras` quando o administrador editar horários diretamente na planilha.
+Só é necessário se alguém for editar horários **diretamente na planilha**. Como o fluxo recomendado é editar pela tela **Registros**, o gatilho pode ficar desativado.
 
 1. Abra o projeto no [Google Apps Script](https://script.google.com/).
 2. Menu **Editar → Gatilhos do projeto atual**.
@@ -146,7 +147,7 @@ Necessário para recalcular `totalHoras` quando o administrador editar horários
 6. Tipo de evento: **Ao editar**.
 7. Salvar e autorizar as permissões.
 
-> Sem o trigger, o recálculo só acontece via `registerClockAction` (registro normal pelo app) ou chamando `recalcularTotalHoras(row)` manualmente.
+> Sem o trigger, o recálculo continua acontecendo no registro normal (`registerClockAction`) e em toda edição feita pela tela `Registros` (`atualizarRegistro`).
 
 ### 3. Cadastrar acessos
 
@@ -165,6 +166,20 @@ Na página **Ajustes** (`?page=ajustes`):
 
 > A tela atualmente não recarrega a escala já salva ao selecionar o funcionário; os campos voltam ao padrão. A edição pode ser feita diretamente na aba `config_escala`.
 
+### 5. Corrigir registros
+
+Não é necessário editar a planilha. Na página **Registros** (`?page=registros`):
+
+1. Filtre o período desejado.
+2. Clique no ícone de lápis ao lado do registro.
+3. Corrija entrada, saída do intervalo, retorno e/ou saída.
+4. Se quiser, informe o motivo da alteração.
+5. Clique em **Salvar**.
+
+O sistema valida a ordem dos horários, recalcula o total e grava o motivo na coluna `observacoes` com data/hora.
+
+> O botão de edição aparece apenas quando a sessão é de administrador. Ainda assim, a função de backend não valida o perfil — a restrição visual não substitui segurança no servidor.
+
 ---
 
 ## Formatos de data e hora
@@ -172,12 +187,10 @@ Na página **Ajustes** (`?page=ajustes`):
 - O backend espera e devolve datas no formato **`dd/MM/yyyy`**.
 - Horários são gravados como **texto `HH:mm:ss`** (`Utilities.formatDate`).
 - `formatTimeForDisplay` e `formatDurationForDisplay` aceitam tanto `Date` (célula formatada como hora) quanto texto.
-- ⚠️ Evite `new Date("02/11/2026")`: no runtime V8 isso é lido como **11 de fevereiro** (`mm/dd/yyyy`), não 2 de novembro. Para converter, faça o split manual:
+- A conversão de datas é centralizada em **`parseDateBR`**, que entende `dd/MM/yyyy`, `dd-MM-yyyy`, `dd.MM.yyyy` e ISO `yyyy-MM-dd` sem a ambiguidade do `new Date(string)` do V8.
+- `formatDateBR` usa o mesmo parser e devolve sempre `dd/MM/yyyy`.
 
-```js
-const [dia, mes, ano] = dataStr.split('/').map(Number);
-const data = new Date(ano, mes - 1, dia);
-```
+> Recomendação: mantenha a coluna `data` como **data real** formatada `dd/MM/aaaa` e a planilha com localidade **Brasil** e fuso **São Paulo**.
 
 ---
 

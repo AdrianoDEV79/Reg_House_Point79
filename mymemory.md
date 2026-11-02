@@ -141,11 +141,17 @@ Isso criará/atualizará automaticamente a linha na aba `config_escala`.
 4. Testar com dados reais de funcionários
 
 ### Pendências conhecidas
-1. `isDiaFolga` usa `new Date('dd/MM/yyyy')`, que o V8 interpreta como `mm/dd/yyyy` — corrigir com parse manual.
-2. Dashboard não consome `cargaHorariaPrevista` e `bancoHorasTotal`; "Carga Prevista" segue fixa em 176h.
-3. Ajustes não recarrega a escala salva ao selecionar o funcionário.
-4. Carga prevista mensal soma apenas uma carga diária por funcionário.
-5. Banco de horas ignora faltas, feriados e carga de sábado.
+1. Dashboard não consome `cargaHorariaPrevista` e `bancoHorasTotal`; "Carga Prevista" segue fixa em 176h.
+2. Ajustes não recarrega a escala salva ao selecionar o funcionário.
+3. Carga prevista mensal soma apenas uma carga diária por funcionário.
+4. Banco de horas ignora faltas, feriados e carga de sábado.
+5. Funções administrativas (incluindo `atualizarRegistro`) não validam perfil no servidor.
+
+## Edição de Registros (v2.1)
+- Tela `Registros.html` ganhou botão de edição por linha e modal com os quatro horários + motivo.
+- Backend: `normalizarHora` e `atualizarRegistro` (validação, `LockService`, recálculo do total).
+- Motivo da alteração é anexado em `observacoes` com data/hora.
+- Datas agora passam por `parseDateBR`/`formatDateBR`, eliminando a ambiguidade `dd/MM` × `mm/dd`.
 
 ---
 *Este arquivo será atualizado conforme alterações são realizadas.*

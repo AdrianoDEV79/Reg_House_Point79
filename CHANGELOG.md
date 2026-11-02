@@ -10,12 +10,39 @@ O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o 
 
 ### A fazer
 
-- Corrigir o parse de datas `dd/MM/yyyy` em `isDiaFolga`.
 - Exibir `cargaHorariaPrevista` e `bancoHorasTotal` no dashboard.
 - Carregar a escala salva ao selecionar um funcionário em Ajustes.
 - Revisar o cálculo de carga prevista mensal.
 - Implementar histórico, relatório PDF e exportação.
+- Adicionar verificação de perfil no servidor para funções administrativas.
 - Adicionar testes automatizados.
+
+---
+
+## [2.1.0] — 2026-11-02
+
+### Adicionado
+
+- **Edição de registros pelo sistema**:
+  - Botão de edição em cada linha de `Registros.html`.
+  - Modal com entrada, saída do intervalo, retorno, saída e motivo.
+  - Função `atualizarRegistro` com validação de formato e ordem cronológica, `LockService` e recálculo do total.
+  - Motivo da alteração gravado em `observacoes` com data/hora.
+- **`parseDateBR` e `formatDateBR`**: conversão centralizada de datas (`dd/MM/yyyy`, `dd-MM-yyyy`, `dd.MM.yyyy` e ISO), com validação de datas impossíveis.
+- Validação de ordem dos horários também no cliente (entrada e par de intervalo).
+
+### Corrigido
+
+- Datas `dd/MM/yyyy` deixam de ser interpretadas como `mm/dd/yyyy` pelo V8.
+- `isDiaFolga` agora identifica corretamente o dia da semana (ex.: `02/11/2026` = segunda-feira).
+- `getLatestEmployeeRecord`, `getWorkingEmployees`, `getDashboardData`, `getRegistrosFiltrados` e `calcularBancoHoras` passam a usar a mesma conversão de data, evitando registros duplicados e meses errados.
+- O filtro de registros por período agora compara datas de verdade e funciona corretamente entre meses e anos.
+- Datas em ISO (`yyyy-MM-dd`) não sofrem mais deslocamento de um dia pelo fuso.
+
+### Alterado
+
+- O trigger `onEdit` passou a ser **opcional**: o fluxo normal de edição é pela tela `Registros`.
+- `Registros.html` ganhou modal de edição, banner de confirmação e tratamento de erro na busca.
 
 ---
 

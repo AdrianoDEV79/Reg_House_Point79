@@ -24,11 +24,17 @@
         .filters input { width:100%; padding:10px; border:2px solid var(--border); border-radius:10px; font-size:14px; }
         .btn { padding:10px 16px; border:none; border-radius:10px; font-weight:600; cursor:pointer; }
         .btn-primary { background:var(--primary); color:white; }
+        .btn-secondary { background:#E2E8F0; color:var(--text); }
+        .banner { display:none; background:#ECFDF5; color:#065F46; padding:10px 12px; border-radius:10px; font-size:12px; margin-bottom:12px; }
+        .banner.show { display:block; }
         .record-row { padding:14px 0; border-bottom:1px solid var(--border); font-size:13px; }
         .record-row:last-child { border-bottom:none; }
-        .record-top { display:flex; justify-content:space-between; margin-bottom:6px; }
+        .record-top { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:6px; }
         .record-name { font-weight:600; }
+        .record-meta { display:flex; align-items:center; gap:6px; }
         .record-date { color:var(--text-muted); font-size:12px; }
+        .btn-edit { background:none; border:none; color:var(--primary); cursor:pointer; padding:4px 6px; font-size:13px; }
+        .btn-edit:hover { color:var(--primary-dark); }
         .record-times { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; text-align:center; }
         .time-block { background:linear-gradient(135deg,#EFF6FF,#DBEAFE); padding:6px 4px; border-radius:8px; }
         .time-block span { display:block; font-size:10px; color:var(--text-muted); }
@@ -37,7 +43,26 @@
         .nav-btn { display:flex; flex-direction:column; align-items:center; gap:3px; color:var(--text-muted); text-decoration:none; font-size:10px; }
         .nav-btn i { font-size:20px; }
         .nav-btn.active { color:var(--primary); font-weight:600; }
+
+        /* Modal de edição */
+        .modal-overlay { position:fixed; inset:0; background:rgba(15,23,42,0.55); display:none; align-items:center; justify-content:center; padding:16px; z-index:200; }
+        .modal-overlay.open { display:flex; }
+        .modal { background:#fff; border-radius:16px; padding:20px; width:100%; max-width:430px; max-height:90vh; overflow:auto; box-shadow:0 20px 50px rgba(0,0,0,0.25); }
+        .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+        .modal-header h2 { font-size:17px; }
+        .modal-close { background:none; border:none; font-size:24px; line-height:1; cursor:pointer; color:var(--text-muted); }
+        .modal-subtitle { font-size:13px; color:var(--text-muted); margin-bottom:14px; }
+        .modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+        .modal .form-group { margin-bottom:10px; }
+        .modal label { display:block; font-size:11px; color:var(--text-muted); margin-bottom:4px; }
+        .modal input { width:100%; padding:9px; border:2px solid var(--border); border-radius:9px; font-size:14px; }
+        .modal-msg { display:none; padding:10px; border-radius:8px; font-size:12px; margin-bottom:10px; }
+        .modal-msg.erro { display:block; background:#FEF2F2; color:#991B1B; }
+        .modal-actions { display:flex; gap:10px; }
+        .modal-actions .btn { flex:1; }
+
         @media(max-width:480px) { .filters { grid-template-columns:1fr; } .record-times { font-size:11px; } }
+        @media(max-width:360px) { .modal-grid { grid-template-columns:1fr; } }
     </style>
 </head>
 <body>
@@ -49,47 +74,110 @@
                 <div><label>Até:</label><input type="date" id="dataFim"></div>
                 <button class="btn btn-primary" onclick="aplicarFiltro()"><i class="fas fa-search"></i></button>
             </div>
+            <div class="banner" id="banner"></div>
             <div id="lista" class="loading">Carregando...</div>
         </div>
     </div>
+
+    <div class="modal-overlay" id="modalEdicao">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tituloEdicao">
+            <div class="modal-header">
+                <h2 id="tituloEdicao">Editar registro</h2>
+                <button class="modal-close" onclick="fecharEdicao()" aria-label="Fechar">&times;</button>
+            </div>
+            <p class="modal-subtitle" id="modalIdentificacao">—</p>
+
+            <div class="modal-grid">
+                <div class="form-group">
+                    <label for="editEntrada">Entrada</label>
+                    <input type="time" id="editEntrada" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="editSaidaIntervalo">Saída intervalo</label>
+                    <input type="time" id="editSaidaIntervalo" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="editRetornoIntervalo">Retorno intervalo</label>
+                    <input type="time" id="editRetornoIntervalo" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="editSaida">Saída</label>
+                    <input type="time" id="editSaida" step="1">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="editMotivo">Motivo da alteração (opcional)</label>
+                <input type="text" id="editMotivo" maxlength="200" placeholder="Ex.: esqueceu de bater o ponto">
+            </div>
+
+            <div class="modal-msg" id="modalMsg"></div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" onclick="fecharEdicao()">Cancelar</button>
+                <button class="btn btn-primary" id="btnSalvarEdicao" onclick="salvarEdicao()">
+                    <i class="fas fa-save"></i> Salvar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <nav class="bottom-nav">
         <a href="?page=geral" class="nav-btn"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
         <a href="?page=equipe" class="nav-btn"><i class="fas fa-users"></i> Equipe</a>
         <a href="?page=registros" class="nav-btn active"><i class="fas fa-clipboard-list"></i> Registros</a>
         <a href="?page=ajustes" class="nav-btn"><i class="fas fa-cog"></i> Ajustes</a>
     </nav>
+
     <script>
-        function navegarPara(p) { window.location.href = '?page=' + p; }
-        
+        let registros = [];
+        let indiceEdicao = -1;
+        let bannerTimer = null;
+        let ehAdmin = false;
+
         function aplicarFiltro() {
             const de = document.getElementById('dataInicio').value;
             const ate = document.getElementById('dataFim').value;
-            
+
             // Converter para formato dd/mm/aaaa
             const deFormatado = de ? de.split('-').reverse().join('/') : '';
             const ateFormatado = ate ? ate.split('-').reverse().join('/') : '';
-            
+
             document.getElementById('lista').innerHTML = '<p class="loading">Buscando registros...</p>';
-            
+
             google.script.run
                 .withSuccessHandler(mostrarRegistros)
+                .withFailureHandler(erro => {
+                    document.getElementById('lista').innerHTML =
+                        '<p style="text-align:center;color:#991B1B;padding:20px;">Erro ao buscar registros: ' +
+                        erro.toString() + '</p>';
+                })
                 .getRegistrosFiltrados(deFormatado, ateFormatado);
         }
-        
+
         function mostrarRegistros(lista) {
+            registros = lista || [];
             const c = document.getElementById('lista');
-            if (!lista || lista.length === 0) {
+            if (registros.length === 0) {
                 c.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px;">Nenhum registro encontrado no período</p>';
                 return;
             }
-            
+
             c.innerHTML = '';
-            lista.forEach(r => {
+            registros.forEach((r, i) => {
+                const botaoEditar = ehAdmin
+                    ? `<button class="btn-edit" onclick="abrirEdicao(${i})" title="Editar registro" aria-label="Editar registro">
+                           <i class="fas fa-pen"></i>
+                       </button>`
+                    : '';
                 c.innerHTML += `
                 <div class="record-row">
                     <div class="record-top">
                         <span class="record-name">${r.nome}</span>
-                        <span class="record-date">${r.data}</span>
+                        <div class="record-meta">
+                            <span class="record-date">${r.data}</span>
+                            ${botaoEditar}
+                        </div>
                     </div>
                     <div class="record-times">
                         <div class="time-block"><span>Entrada</span>${r.entrada || '—'}</div>
@@ -103,9 +191,121 @@
                 </div>`;
             });
         }
-        
+
+        // ==========================================
+        // EDIÇÃO DE REGISTRO
+        // ==========================================
+        function horaParaInput(valor) {
+            if (!valor) return '';
+            const m = String(valor).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+            if (!m) return '';
+            return String(m[1]).padStart(2, '0') + ':' + m[2] + ':' + (m[3] || '00');
+        }
+
+        function abrirEdicao(indice) {
+            if (!ehAdmin) return;
+            const r = registros[indice];
+            if (!r) return;
+            indiceEdicao = indice;
+
+            document.getElementById('modalIdentificacao').textContent = r.nome + ' • ' + r.data;
+            document.getElementById('editEntrada').value = horaParaInput(r.entrada);
+            document.getElementById('editSaidaIntervalo').value = horaParaInput(r.saidaIntervalo);
+            document.getElementById('editRetornoIntervalo').value = horaParaInput(r.retornoIntervalo);
+            document.getElementById('editSaida').value = horaParaInput(r.saida);
+            document.getElementById('editMotivo').value = '';
+
+            const msg = document.getElementById('modalMsg');
+            msg.className = 'modal-msg';
+            msg.textContent = '';
+
+            document.getElementById('modalEdicao').classList.add('open');
+            document.getElementById('editEntrada').focus();
+        }
+
+        function fecharEdicao() {
+            document.getElementById('modalEdicao').classList.remove('open');
+            indiceEdicao = -1;
+        }
+
+        function salvarEdicao() {
+            const r = registros[indiceEdicao];
+            if (!r) return;
+
+            const entrada = document.getElementById('editEntrada').value;
+            const saidaIntervalo = document.getElementById('editSaidaIntervalo').value;
+            const retornoIntervalo = document.getElementById('editRetornoIntervalo').value;
+            const saida = document.getElementById('editSaida').value;
+            const motivo = document.getElementById('editMotivo').value.trim();
+            const msg = document.getElementById('modalMsg');
+            const btn = document.getElementById('btnSalvarEdicao');
+
+            const mostrarErro = texto => {
+                msg.className = 'modal-msg erro';
+                msg.textContent = texto;
+            };
+
+            if (!entrada && (saidaIntervalo || retornoIntervalo || saida)) {
+                mostrarErro('Informe a entrada antes dos demais horários.');
+                return;
+            }
+            if ((saidaIntervalo && !retornoIntervalo) || (!saidaIntervalo && retornoIntervalo)) {
+                mostrarErro('Informe a saída e o retorno do intervalo juntos.');
+                return;
+            }
+            if (!entrada && !saidaIntervalo && !retornoIntervalo && !saida) {
+                if (!confirm('Isso vai apagar todos os horários deste registro. Continuar?')) return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            msg.className = 'modal-msg';
+            msg.textContent = '';
+
+            google.script.run
+                .withSuccessHandler(resposta => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+                    if (!resposta || !resposta.success) {
+                        mostrarErro((resposta && resposta.message) || 'Não foi possível salvar.');
+                        return;
+                    }
+                    fecharEdicao();
+                    mostrarBanner('Registro de ' + r.nome + ' atualizado. Total: ' + (resposta.totalHoras || '—'));
+                    aplicarFiltro();
+                })
+                .withFailureHandler(erro => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-save"></i> Salvar';
+                    mostrarErro('Erro: ' + erro.toString());
+                })
+                .atualizarRegistro(r.id, entrada, saidaIntervalo, retornoIntervalo, saida, motivo);
+        }
+
+        function mostrarBanner(texto) {
+            const el = document.getElementById('banner');
+            el.textContent = texto;
+            el.classList.add('show');
+            if (bannerTimer) clearTimeout(bannerTimer);
+            bannerTimer = setTimeout(() => el.classList.remove('show'), 4000);
+        }
+
+        // Fechar modal ao clicar fora ou pressionar Esc
+        document.getElementById('modalEdicao').addEventListener('click', function(e) {
+            if (e.target === this) fecharEdicao();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') fecharEdicao();
+        });
+
         // Carregar todos os registros ao abrir
         window.onload = function() {
+            try {
+                const sessao = JSON.parse(sessionStorage.getItem('usuarioLogado') || 'null');
+                ehAdmin = !!(sessao && sessao.role === 'admin');
+            } catch (e) {
+                ehAdmin = false;
+            }
             aplicarFiltro();
         };
     </script>

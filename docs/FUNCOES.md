@@ -81,6 +81,18 @@ Converte `"HH:mm:ss"` em `{ hours, minutes, seconds }`; retorna `null` para entr
 
 Converte `{ hours, minutes, seconds }` em minutos decimais.
 
+### `parseDateBR(value)`
+
+Converte uma data em objeto `Date` sem a ambiguidade do parser nativo do V8.
+
+- Aceita `Date`, `dd/MM/yyyy`, `dd-MM-yyyy`, `dd.MM.yyyy` e ISO `yyyy-MM-dd` (inclusive com hora).
+- Valida datas impossíveis (ex.: `31/02/2026` retorna `null`).
+- É a função usada por todas as leituras de data do sistema (`isDiaFolga`, `getLatestEmployeeRecord`, `getWorkingEmployees`, `getDashboardData`, `getRegistrosFiltrados` e `calcularBancoHoras`).
+
+### `formatDateBR(value)`
+
+Usa `parseDateBR` e devolve a data como `dd/MM/yyyy`, ou `''` se não for possível converter.
+
 ### `calculateTotalHours(entradaStr, saidaIntervaloStr, retornoIntervaloStr, saidaStr)`
 
 Calcula a jornada líquida:
@@ -115,9 +127,9 @@ Lê a aba `config_escala` e retorna a configuração do funcionário.
 
 Retorna `true` se o dia da semana de `dataStr` estiver na lista de folgas.
 
-- `dataStr` deve ser `dd/MM/yyyy`.
+- `dataStr` deve ser `dd/MM/yyyy` (ou outro formato aceito por `parseDateBR`).
 - `0` (domingo) é normalizado para `7`.
-- ⚠️ A implementação atual usa `new Date(dataStr)`, que no V8 interpreta `dd/MM/yyyy` como `mm/dd/yyyy`. Ver [PLANILHA.md](PLANILHA.md#formatos-de-data-e-hora).
+- A conversão é feita por `parseDateBR`, então `02/11/2026` é corretamente tratado como 2 de novembro (segunda-feira).
 
 ### `salvarEscalaFuncionario(employeeId, tipo, folgas, cargaDiaria, cargaSabado)`
 
@@ -167,7 +179,54 @@ Trigger instalável. Só age quando:
 
 Chama `recalcularTotalHoras(e.range.getRow())`. Erros são apenas logados.
 
-> Precisa ser cadastrado manualmente em **Editar → Gatilhos do projeto atual**.
+> É **opcional**: só é necessário se alguém editar horários diretamente na planilha. Edições pela tela `Registros` já recalculam pelo `atualizarRegistro`.
+
+---
+
+## Edição de registros pelo sistema
+
+### `normalizarHora(valor)`
+
+Normaliza um horário para `HH:mm:ss`.
+
+- Aceita `HH:mm` ou `HH:mm:ss`.
+- Retorna `''` para vazio e `null` para formato inválido (hora > 23, minuto/segundo > 59).
+
+### `atualizarRegistro(idRegistro, entrada, saidaIntervalo, retornoIntervalo, saida, motivo)`
+
+Atualiza os horários de um registro existente **sem editar a planilha manualmente**.
+
+| Parâmetro | Tipo | Observação |
+|---|---|---|
+| `idRegistro` | string/number | Coluna A de `registro_ponto` |
+| `entrada` | string | `HH:mm` ou `HH:mm:ss`; vazio permitido |
+| `saidaIntervalo` | string | Vazio permitido |
+| `retornoIntervalo` | string | Vazio permitido |
+| `saida` | string | Vazio permitido |
+| `motivo` | string | Opcional; gravado em `observacoes` |
+
+**Validações:**
+
+- Formato de todos os horários.
+- Se houver qualquer horário, a entrada é obrigatória.
+- Saída e retorno do intervalo devem ser informados juntos.
+- Ordem cronológica: entrada < saída do intervalo < retorno < saída.
+- Se houver saída, o total precisa ser válido.
+
+**Efeitos:**
+
+- Adquire `LockService` (10s).
+- Grava E–H e recalcula I (`totalHoras`).
+- Se houver motivo, anexa `[dd/MM/yyyy HH:mm] motivo` na coluna K, preservando o conteúdo anterior.
+
+**Retorno:**
+
+```js
+{ success: true, message: 'Registro atualizado com sucesso.', totalHoras: '08:00', record: { ... } }
+{ success: false, message: 'A saída deve ser depois da entrada.' }
+```
+
+> Não há verificação de perfil no servidor: a função confia que a chamada veio da tela admin. Ver [Segurança](../README.md#segurança-e-limitações).
 
 ---
 
@@ -347,7 +406,7 @@ Retorna registros entre duas datas `dd/MM/yyyy` (inclusive), do mais recente par
 }]
 ```
 
-- A comparação é **lexicográfica** entre strings `dd/MM/yyyy`; funciona dentro do mesmo ano, mas não é cronológica entre anos diferentes.
+- As datas são convertidas com `parseDateBR` e comparadas como `Date`, então o filtro funciona corretamente entre meses e anos.
 - Filtros vazios são ignorados (retorna tudo).
 
 ---
@@ -390,7 +449,8 @@ Lê a chave `configSistema` e mescla com o padrão:
 
 1. Mantenha o retorno `{ success, message }` para funções chamadas pelo frontend.
 2. Use `LockService` em qualquer escrita sujeita a concorrência.
-3. Prefira `Utilities.formatDate` a `new Date(string)` para datas em formato brasileiro.
+3. Use `parseDateBR`/`formatDateBR` para qualquer data em formato brasileiro — não use `new Date(string)`.
 4. Registre erros com `Logger.log` e devolva mensagens amigáveis.
 5. Evite `getDataRange()` em abas muito grandes; considere `getRange` com limites.
-6. Após alterar, rode `clasp push` e teste no Web App.
+6. Prefira editar registros por `atualizarRegistro` em vez de orientar edição manual na planilha.
+7. Após alterar, rode `clasp push` e teste no Web App.

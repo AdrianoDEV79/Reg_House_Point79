@@ -21,7 +21,7 @@ registro de ponto/
 ├── employee.html        -> página do funcionário (bater ponto, verifica dia de folga)
 ├── Equipe.html          -> listagem de funcionários
 ├── login.html           -> tela de login
-├── Registros.html       -> consulta de registros por data
+├── Registros.html       -> consulta e edição de registros por data
 ├── README.md            -> visão geral, setup, deploy e limitações
 ├── CHANGELOG.md         -> histórico de versões
 ├── docs/
@@ -37,7 +37,7 @@ Fluxo: `login.html` → `processLogin()` → sucesso redireciona para `?page=reg
 - `employee.html`: `registerClockAction()` → atualiza planilha (verifica dia de folga)
 - `admin.html`: `getDashboardData()` + `getWorkingEmployees()` (inclui banco de horas)
 - `equipe.html`: `getListaUsuarios()`
-- `registros.html`: `getRegistrosFiltrados(dataInicio, dataFim)`
+- `registros.html`: `getRegistrosFiltrados(dataInicio, dataFim)` + `atualizarRegistro(id, horários, motivo)` (edição pelo sistema)
 - `ajustes.html`: `salvarConfiguracoes()` / `carregarConfiguracoes()` + `salvarEscalaFuncionario()` / `carregarFuncionariosEscala()`
 Todas usam `google.script.run` com `withSuccessHandler` / `withFailureHandler`.
 
@@ -64,9 +64,10 @@ Todas usam `google.script.run` com `withSuccessHandler` / `withFailureHandler`.
 - Blocos comentados `// ============================================================`
 - Constantes no topo (`TIMEZONE`, `DIAS_SEMANA`, `ESCALAS_DISPONIVEIS`)
 - Funções puras com try/catch + Logger.log
-- `LockService` em `registerClockAction` (10s wait)
+- `LockService` em `registerClockAction` e `atualizarRegistro` (10s wait)
 - `Utilities.formatDate()` para data/hora
-- `onEdit()` trigger para recálculo automático de totalHoras
+- `parseDateBR()` / `formatDateBR()` para ler datas sem ambiguidade `dd/MM` × `mm/dd`
+- `onEdit()` trigger **opcional** para recálculo de totalHoras em edições manuais na planilha
 
 ### Layout (HTML)
 - CSS próprio com variáveis `:root { --primary: #2563EB; ... }`
@@ -82,12 +83,13 @@ Todas usam `google.script.run` com `withSuccessHandler` / `withFailureHandler`.
 
 ## 7. Pontos frágeis / não mexer sem cuidado
 1. **Senhas em texto plano** (utils.js linhas 62-86) - comparado diretamente
-2. **Coluna totalHoras** - agora recalculada via `onEdit` quando admin edita células 5-8
+2. **Coluna totalHoras** - recalculada no registro, na edição via `atualizarRegistro` e via `onEdit` (opcional)
 3. **Acesso ANYONE** no appsscript.json - "proteção" só pelo login interno
 4. **doGet não valida sessão servidor** - páginas protegidas só via sessionStorage cliente
 5. **Geolocalização não validada** - vem do cliente livremente
 6. **Leituras completas de aba** (`getDataRange()`) - pode causar timeout em planilhas grandes
-7. **Trigger onEdit** - precisa ser configurado manualmente no Google Apps Script (Editar → Gatilhos do projeto)
+7. **Trigger onEdit** - agora opcional; só é necessário se alguém editar horários direto na planilha
 8. **NR-11/11 interjornada 11h** - código não verifica, adicionar validação sem estudar casos
+9. **Edição sem perfil** - `atualizarRegistro` não valida se quem chamou é admin no servidor
 
-**Resumo**: Sistema com escala 5x2, banco de horas e recálculo automático. Atenção à segurança (senhas planas) e configurar trigger onEdit.
+**Resumo**: Sistema com escala 5x2, banco de horas, edição de registros pelo sistema e recálculo automático. Atenção à segurança (senhas planas e funções admin sem validação de perfil).

@@ -134,6 +134,49 @@ function timeToMinutes(timeObj) {
   return timeObj.hours * 60 + timeObj.minutes + (timeObj.seconds / 60);
 }
 
+// Converte dd/MM/yyyy (texto ou Date) em Date sem ambiguidade mm/dd.
+// Aceita também dd-MM-yyyy, dd.MM.yyyy e ISO (yyyy-MM-dd).
+function parseDateBR(value) {
+  try {
+    if (!value) return null;
+    if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+    const texto = String(value).trim();
+    const match = texto.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})(?:\s|$)/);
+    if (match) {
+      const dia = parseInt(match[1], 10);
+      const mes = parseInt(match[2], 10);
+      let ano = parseInt(match[3], 10);
+      if (ano < 100) ano += 2000;
+      const data = new Date(ano, mes - 1, dia);
+      const valida = data.getFullYear() === ano &&
+        data.getMonth() === mes - 1 &&
+        data.getDate() === dia;
+      return valida ? data : null;
+    }
+    const iso = texto.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]|$)/);
+    if (iso) {
+      const ano = parseInt(iso[1], 10);
+      const mes = parseInt(iso[2], 10);
+      const dia = parseInt(iso[3], 10);
+      const data = new Date(ano, mes - 1, dia);
+      const valida = data.getFullYear() === ano &&
+        data.getMonth() === mes - 1 &&
+        data.getDate() === dia;
+      return valida ? data : null;
+    }
+    const data = new Date(texto);
+    return isNaN(data.getTime()) ? null : data;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Formata qualquer data aceita por parseDateBR como dd/MM/yyyy.
+function formatDateBR(value) {
+  const data = parseDateBR(value);
+  return data ? Utilities.formatDate(data, TIMEZONE, 'dd/MM/yyyy') : '';
+}
+
 function calculateTotalHours(entradaStr, saidaIntervaloStr, retornoIntervaloStr, saidaStr) {
   try {
     const entrada = parseTime(entradaStr);
@@ -184,8 +227,8 @@ function isDiaFolga(employeeId, dataStr) {
   try {
     const escala = getEscalaFuncionario(employeeId);
     if (!escala || !escala.folgas) return false;
-    const data = new Date(dataStr);
-    if (isNaN(data.getTime())) return false;
+    const data = parseDateBR(dataStr);
+    if (!data) return false;
     let diaSemana = data.getDay();
     if (diaSemana === 0) diaSemana = 7;
     return escala.folgas.includes(diaSemana);
@@ -284,6 +327,116 @@ function onEdit(e) {
 }
 
 // ============================================================
+// EDIÇÃO DE REGISTROS PELO ADMIN (SOMENTE PELO SISTEMA)
+// ============================================================
+
+function normalizarHora(valor) {
+  if (valor === null || valor === undefined) return '';
+  const texto = String(valor).trim();
+  if (!texto) return '';
+  const match = texto.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (!match) return null;
+  const horas = parseInt(match[1], 10);
+  const minutos = parseInt(match[2], 10);
+  const segundos = parseInt(match[3] || '0', 10);
+  if (horas > 23 || minutos > 59 || segundos > 59) return null;
+  return String(horas).padStart(2, '0') + ':' +
+    String(minutos).padStart(2, '0') + ':' +
+    String(segundos).padStart(2, '0');
+}
+
+function atualizarRegistro(idRegistro, entrada, saidaIntervalo, retornoIntervalo, saida, motivo) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('registro_ponto');
+    if (!sheet) return { success: false, message: 'Aba de registro não encontrada.' };
+
+    const dados = sheet.getDataRange().getValues();
+    let rowIndex = -1;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]) === String(idRegistro)) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+    if (rowIndex < 0) return { success: false, message: 'Registro não encontrado.' };
+
+    const horarios = {
+      entrada: normalizarHora(entrada),
+      saidaIntervalo: normalizarHora(saidaIntervalo),
+      retornoIntervalo: normalizarHora(retornoIntervalo),
+      saida: normalizarHora(saida)
+    };
+    if (Object.keys(horarios).some(k => horarios[k] === null)) {
+      return { success: false, message: 'Horário inválido. Use o formato HH:mm ou HH:mm:ss.' };
+    }
+
+    const e = horarios.entrada;
+    const si = horarios.saidaIntervalo;
+    const ri = horarios.retornoIntervalo;
+    const s = horarios.saida;
+
+    if (!e && (si || ri || s)) {
+      return { success: false, message: 'Informe a entrada antes dos demais horários.' };
+    }
+    if ((si && !ri) || (!si && ri)) {
+      return { success: false, message: 'Informe a saída e o retorno do intervalo juntos.' };
+    }
+
+    const mEntrada = e ? timeToMinutes(parseTime(e)) : null;
+    const mSaidaIntervalo = si ? timeToMinutes(parseTime(si)) : null;
+    const mRetornoIntervalo = ri ? timeToMinutes(parseTime(ri)) : null;
+    const mSaida = s ? timeToMinutes(parseTime(s)) : null;
+
+    if (mEntrada !== null && mSaidaIntervalo !== null && mSaidaIntervalo <= mEntrada) {
+      return { success: false, message: 'A saída do intervalo deve ser depois da entrada.' };
+    }
+    if (mSaidaIntervalo !== null && mRetornoIntervalo !== null && mRetornoIntervalo <= mSaidaIntervalo) {
+      return { success: false, message: 'O retorno do intervalo deve ser depois da saída do intervalo.' };
+    }
+    if (mRetornoIntervalo !== null && mSaida !== null && mSaida <= mRetornoIntervalo) {
+      return { success: false, message: 'A saída deve ser depois do retorno do intervalo.' };
+    }
+    if (mEntrada !== null && mSaida !== null && mSaida <= mEntrada) {
+      return { success: false, message: 'A saída deve ser depois da entrada.' };
+    }
+
+    const totalHoras = calculateTotalHours(e, si, ri, s);
+    if (s && !totalHoras) {
+      return {
+        success: false,
+        message: 'Horários inconsistentes: a saída deve ser depois da entrada e o intervalo deve ser válido.'
+      };
+    }
+
+    sheet.getRange(rowIndex, 5, 1, 4).setValues([[e, si, ri, s]]);
+    sheet.getRange(rowIndex, 9).setValue(totalHoras || '');
+
+    const textoMotivo = String(motivo || '').trim();
+    if (textoMotivo) {
+      const agora = Utilities.formatDate(new Date(), TIMEZONE, 'dd/MM/yyyy HH:mm');
+      const obsAtual = String(sheet.getRange(rowIndex, 11).getValue() || '').trim();
+      const registro = '[' + agora + '] ' + textoMotivo;
+      sheet.getRange(rowIndex, 11).setValue(obsAtual ? obsAtual + ' | ' + registro : registro);
+    }
+
+    return {
+      success: true,
+      message: 'Registro atualizado com sucesso.',
+      totalHoras: totalHoras,
+      record: { entrada: e, saidaIntervalo: si, retornoIntervalo: ri, saida: s }
+    };
+  } catch (error) {
+    Logger.log('ERRO atualizarRegistro: ' + error.toString());
+    return { success: false, message: 'Erro ao atualizar registro: ' + error.toString() };
+  } finally {
+    try { lock.releaseLock(); } catch (e) {}
+  }
+}
+
+// ============================================================
 // BANCO DE HORAS
 // ============================================================
 
@@ -300,11 +453,7 @@ function calcularBancoHoras(employeeId, mes, ano) {
     for (let i = 1; i < dados.length; i++) {
       const r = dados[i];
       if (String(r[1]) !== String(employeeId)) continue;
-      let dStr = '';
-      try {
-        dStr = r[3] instanceof Date ? Utilities.formatDate(r[3], TIMEZONE, 'dd/MM/yyyy')
-          : Utilities.formatDate(new Date(String(r[3])), TIMEZONE, 'dd/MM/yyyy');
-      } catch (e) {}
+      const dStr = formatDateBR(r[3]);
       if (!dStr) continue;
       const partes = dStr.split('/');
       const dia = parseInt(partes[0], 10);
@@ -381,15 +530,7 @@ function getLatestEmployeeRecord(employeeId) {
     const today = Utilities.formatDate(new Date(), TIMEZONE, 'dd/MM/yyyy');
     for (let i = records.length - 1; i >= 1; i--) {
       const record = records[i];
-      let recordDateStr = '';
-      try {
-        if (record[3] instanceof Date) {
-          recordDateStr = Utilities.formatDate(record[3], TIMEZONE, 'dd/MM/yyyy');
-        } else {
-          const d = new Date(String(record[3]));
-          if (!isNaN(d.getTime())) recordDateStr = Utilities.formatDate(d, TIMEZONE, 'dd/MM/yyyy');
-        }
-      } catch (e) {}
+      const recordDateStr = formatDateBR(record[3]);
       if (String(record[1]) === String(employeeId) && recordDateStr === today) {
         return {
           row: i + 1, idRegistro: record[0], idFuncionario: record[1], nomeFuncionario: record[2],
@@ -504,11 +645,7 @@ function getWorkingEmployees() {
     const ids = new Set();
     for (let i = 1; i < records.length; i++) {
       const r = records[i];
-      let dStr = '';
-      try {
-        dStr = r[3] instanceof Date ? Utilities.formatDate(r[3], TIMEZONE, 'dd/MM/yyyy')
-          : Utilities.formatDate(new Date(String(r[3])), TIMEZONE, 'dd/MM/yyyy');
-      } catch (e) {}
+      const dStr = formatDateBR(r[3]);
       if (dStr === today && !ids.has(String(r[1]))) {
         ids.add(String(r[1]));
         working.push({
@@ -542,11 +679,8 @@ function getDashboardData() {
     
     for (let i = 1; i < records.length; i++) {
       const r = records[i];
-      let dStr = '';
-      try {
-        dStr = r[3] instanceof Date ? Utilities.formatDate(r[3], TIMEZONE, 'dd/MM/yyyy')
-          : Utilities.formatDate(new Date(String(r[3])), TIMEZONE, 'dd/MM/yyyy');
-      } catch (e) {}
+      const dStr = formatDateBR(r[3]);
+      if (!dStr) continue;
       const rMes = dStr.split('/').slice(1).join('/');
       const horas = r[8] ? String(r[8]).split(':').map(Number) : [0,0];
       const horasDec = horas[0] + horas[1]/60;
@@ -601,18 +735,20 @@ function getRegistrosFiltrados(dataInicio, dataFim) {
     const sheet = ss.getSheetByName('registro_ponto');
     if (!sheet) return [];
     const dados = sheet.getDataRange().getValues();
+    const inicio = dataInicio ? parseDateBR(dataInicio) : null;
+    const fim = dataFim ? parseDateBR(dataFim) : null;
+    if (inicio) inicio.setHours(0, 0, 0, 0);
+    if (fim) fim.setHours(23, 59, 59, 999);
     const resultado = [];
     for (let i = dados.length - 1; i >= 1; i--) {
       const r = dados[i];
-      let dStr = '';
-      try {
-        dStr = r[3] instanceof Date ? Utilities.formatDate(r[3], TIMEZONE, 'dd/MM/yyyy')
-          : Utilities.formatDate(new Date(String(r[3])), TIMEZONE, 'dd/MM/yyyy');
-      } catch (e) {}
-      if (!dStr) continue;
-      if ((!dataInicio || dStr >= dataInicio) && (!dataFim || dStr <= dataFim)) {
+      const dataRegistro = parseDateBR(r[3]);
+      if (!dataRegistro) continue;
+      dataRegistro.setHours(0, 0, 0, 0);
+      if ((!inicio || dataRegistro >= inicio) && (!fim || dataRegistro <= fim)) {
         resultado.push({
-          id: r[0], idFunc: r[1], nome: r[2], data: dStr,
+          id: r[0], idFunc: r[1], nome: r[2],
+          data: Utilities.formatDate(dataRegistro, TIMEZONE, 'dd/MM/yyyy'),
           entrada: formatTimeForDisplay(r[4]), saidaIntervalo: formatTimeForDisplay(r[5]),
           retornoIntervalo: formatTimeForDisplay(r[6]), saida: formatTimeForDisplay(r[7]),
           totalHoras: formatDurationForDisplay(r[8])
