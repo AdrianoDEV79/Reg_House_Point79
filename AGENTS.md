@@ -21,7 +21,15 @@ registro de ponto/
 ├── employee.html        -> página do funcionário (bater ponto, verifica dia de folga)
 ├── Equipe.html          -> listagem de funcionários
 ├── login.html           -> tela de login
-└── Registros.html       -> consulta de registros por data
+├── Registros.html       -> consulta de registros por data
+├── README.md            -> visão geral, setup, deploy e limitações
+├── CHANGELOG.md         -> histórico de versões
+├── docs/
+│   ├── PLANILHA.md      -> abas, colunas, config_escala e trigger onEdit
+│   ├── FUNCOES.md       -> referência de todas as funções do backend
+│   └── ARQUITETURA.md   -> fluxos, diagramas e decisões técnicas
+├── AGENTS.md            -> contexto resumido para agentes de IA
+└── mymemory.md          -> memória de alterações do projeto
 ```
 
 ## 4. Telas/funcionalidades e conexão

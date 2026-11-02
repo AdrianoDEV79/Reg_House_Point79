@@ -127,11 +127,25 @@ Isso criará/atualizará automaticamente a linha na aba `config_escala`.
 
 ---
 
-## Próximos Passos (Opcional)
+## Documentação Oficial
+- `README.md` — visão geral, stack, setup, deploy, rotas e limitações
+- `docs/PLANILHA.md` — abas, colunas, `config_escala` e trigger `onEdit`
+- `docs/FUNCOES.md` — referência de todas as funções do backend
+- `docs/ARQUITETURA.md` — fluxos, diagramas Mermaid e decisões técnicas
+- `CHANGELOG.md` — histórico de versões (2.0.0 e 1.0.0)
+
+## Próximos Passos
 1. Configurar trigger `onEdit` no Google Apps Script (obrigatório para recálculo automático)
 2. Criar aba `config_escala` na planilha
 3. Cadastrar escalas dos funcionários via página Ajustes
 4. Testar com dados reais de funcionários
+
+### Pendências conhecidas
+1. `isDiaFolga` usa `new Date('dd/MM/yyyy')`, que o V8 interpreta como `mm/dd/yyyy` — corrigir com parse manual.
+2. Dashboard não consome `cargaHorariaPrevista` e `bancoHorasTotal`; "Carga Prevista" segue fixa em 176h.
+3. Ajustes não recarrega a escala salva ao selecionar o funcionário.
+4. Carga prevista mensal soma apenas uma carga diária por funcionário.
+5. Banco de horas ignora faltas, feriados e carga de sábado.
 
 ---
 *Este arquivo será atualizado conforme alterações são realizadas.*
