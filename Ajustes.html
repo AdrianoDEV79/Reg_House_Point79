@@ -263,9 +263,17 @@
                 return;
             }
 
-            const folgas = folgasStr.split(',')
+            const folgas = folgasStr.split(/[,.]/)
                 .map(f => parseInt(f.trim(), 10))
                 .filter(f => !isNaN(f) && f >= 1 && f <= 7);
+
+            if (folgas.length === 0) {
+                alert('Informe pelo menos um dia de folga (1 a 7).');
+                return;
+            }
+
+            const cargaDiaFinal = isNaN(cargaDia) ? 8 : Math.min(12, Math.max(4, cargaDia));
+            const cargaSabadoFinal = isNaN(cargaSabado) ? 0 : Math.min(12, Math.max(0, cargaSabado));
 
             google.script.run
                 .withSuccessHandler(resposta => {
@@ -286,8 +294,8 @@
                     funcionarioId,
                     tipo,
                     folgas,
-                    isNaN(cargaDia) ? 8 : cargaDia,
-                    isNaN(cargaSabado) ? 0 : cargaSabado
+                    cargaDiaFinal,
+                    cargaSabadoFinal
                 );
         }
         
