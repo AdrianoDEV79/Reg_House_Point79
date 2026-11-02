@@ -140,13 +140,21 @@
                 .withSuccessHandler(function(resposta) {
                     if (resposta && resposta.success) {
                         // Salvar sessão com os dados retornados
-                        sessionStorage.setItem('usuarioLogado', JSON.stringify(resposta));
+                        const sessaoJson = JSON.stringify(resposta);
+                        sessionStorage.setItem('usuarioLogado', sessaoJson);
+                        console.log('[LOGIN] Sessão salva:', !!sessionStorage.getItem('usuarioLogado'));
                         msg.className = 'mensagem sucesso';
-                        msg.style.display = 'block';
                         msg.textContent = 'Bem-vindo, ' + (resposta.name || resposta.userName) + '! Redirecionando...';
-                        // Redirecionar após pequeno delay
+                        // Redirecionar após pequeno delay - usando URLSearchParams para garantir compatibilidade
                         setTimeout(() => {
-                            window.location.href = '?page=regPonto';
+                            // Verificar se sessão ainda existe antes de redirect
+                            if (sessionStorage.getItem('usuarioLogado')) {
+                                const url = new URL(window.location.href);
+                                url.searchParams.set('page', 'regPonto');
+                                window.location.href = url.toString();
+                            } else {
+                                console.log('[LOGIN] Sessão perdida antes de redirect');
+                            }
                         }, 800);
                     } else {
                         msg.className = 'mensagem erro';

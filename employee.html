@@ -1,6 +1,5 @@
 // Versão @28
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -198,6 +197,12 @@
     <!-- ⚡ FUNÇÕES CONECTADAS COM O APPS SCRIPT -->
     <script>
         // ==========================================
+        // LOG DE DEBUG COMPREENSIVO - PARA DIAGNÓSTICO
+        // ==========================================
+        console.log('=== INÍCIO: employee.html script loading ===');
+        console.log('Script employee.html foi carregado pelo Google Apps Script');
+        
+        // ==========================================
         // VARIÁVEIS GLOBAIS
         // ==========================================
         let usuario = null;
@@ -229,46 +234,73 @@
         // INICIALIZAÇÃO
         // ==========================================
         function carregarPagina() {
+            console.log('[DIAG] carregarPagina() iniciado');
             try {
-                console.log('[DEBUG] carregarPagina() iniciado');
-
-                // Verificar sessão
+                // 1. Verificar sessão
                 const sessao = sessionStorage.getItem('usuarioLogado');
+                console.log('[DIAG] sessionStorage tem dados:', !!sessao);
                 if (!sessao) {
-                    console.log('[DEBUG] Nenhuma sessão encontrada, redirecionando para login');
-                    window.location.href = '?page=login';
+                    // Em vez de redirecionar imediatamente, mostrar mensagem e tentar recuperar
+                    console.log('[DIAG] Nenhuma sessão encontrada');
+                    const statusDiaEl = document.getElementById('statusDia');
+                    if (statusDiaEl) {
+                        statusDiaEl.textContent = 'Sessão expirada. Por favor, faça login novamente.';
+                        statusDiaEl.style.color = 'var(--danger)';
+                    }
+                    const msgEl = document.getElementById('mensagem');
+                    if (msgEl) {
+                        msgEl.className = 'mensagem erro';
+                        msgEl.textContent = 'Sessão expirada. Por favor, faça login novamente.';
+                    }
+                    // Tentar fazer login novamente após pequeno delay
+                    setTimeout(() => {
+                        window.location.href = '?page=login';
+                    }, 3000);
                     return;
                 }
                 try {
                     usuario = JSON.parse(sessao);
                 } catch (e) {
-                    console.error('Erro ao ler sessão:', e);
+                    console.error('[DIAG] Erro ao fazer parse da sessão:', e);
                     sessionStorage.removeItem('usuarioLogado');
                     window.location.href = '?page=login';
                     return;
                 }
-                
-                console.log('[DEBUG] Usuário logado:', usuario);
+                console.log('[DIAG] Usuário logado:', usuario ? usuario.name : 'null');
+                console.log('[DIAG] usuario.role:', usuario ? usuario.role : 'null');
+                console.log('[DIAG] usuario.userId:', usuario ? usuario.userId : 'null');
 
-                // Exibir nome
+                // 2. Exibir nome
                 const nomeEl = document.getElementById('nomeUsuario');
                 if (nomeEl) {
                     nomeEl.textContent = 'Bem-vindo, ' + (usuario.userName || usuario.name || 'Usuário');
                 }
                 
-                // Mensagem de boas-vindas para admin
+                // 3. Admin check
                 if (usuario.role === 'admin') {
                     const statusDiaEl = document.getElementById('statusDia');
                     if (statusDiaEl) statusDiaEl.textContent = '✅ Logado como Administrador';
-                    console.log('[DEBUG] Admin detectado, tela configurada');
+                    console.log('[DIAG] Admin detectado');
+                    const btnPonto = document.getElementById('btnPonto');
+                    if (btnPonto) { btnPonto.disabled = true; btnPonto.innerHTML = '<i class="fas fa-check-circle"></i> Modo Admin'; }
                     return;
                 }
 
-                // Capturar localização (não bloqueia)
+                // 4. Tratamento de userId
+                let employeeId = usuario.userId;
+                console.log('[DIAG] employeeId inicial:', employeeId);
+                if (!employeeId || employeeId === null) {
+                    employeeId = usuario.idFuncionario || usuario.userId || 0;
+                    console.log('[DIAG] userId ajustado para:', employeeId);
+                }
+                
+                // 5. Capturar localização
+                console.log('[DIAG] Iniciando geolocalização');
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
                         pos => {
                             localizacao = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+                            console.log('[DIAG] Geolocalização obtida:', localizacao);
                             const coordenadasEl = document.getElementById('coordenadas');
                             if (coordenadasEl) coordenadasEl.textContent = localizacao;
                             const statusLocalEl = document.getElementById('statusLocalizacao');
@@ -281,6 +313,7 @@
                         },
                         err => {
                             localizacao = 'Não autorizada';
+                            console.log('[DIAG] Erro geolocalizacao:', err.message);
                             const statusLocalEl = document.getElementById('statusLocalizacao');
                             if (statusLocalEl) statusLocalEl.textContent = 'Sem permissão de localização ⚠️';
                             const statusGeoEl = document.getElementById('statusGeo');
@@ -289,49 +322,56 @@
                                 statusGeoEl.style.color = 'var(--warning)';
                             }
                         },
-                        { timeout: 5000 } // timeout de 5s para não travar
+                        { timeout: 5000 }
                     );
+                    console.log('[DIAG] Geolocalização iniciada com timeout 5s');
                 } else {
+                    console.log('[DIAG] Navegador não suporta geolocalizacao');
                     const statusLocalEl = document.getElementById('statusLocalizacao');
                     if (statusLocalEl) statusLocalEl.textContent = 'Navegador não suporta ❌';
                 }
                 
-                // Carregar último registro do dia (apenas para funcionário)
-                console.log('[DEBUG] Chamando getLatestEmployeeRecord com ID:', usuario.userId);
-                google.script.run
-                    .withSuccessHandler(function(reg) {
-                        console.log('[DEBUG] Registro recebido:', reg);
-                        atualizarTelaComRegistro(reg);
-                    })
-                    .withFailureHandler(function(erro) {
-                        console.error('[DEBUG] Erro ao carregar registro:', erro);
+                // 6. Delay antes de carregar registro (para geolocalizar)
+                console.log('[DIAG] Aguardando 800ms para geolocalização ser capturada');
+                setTimeout(() => {
+                    console.log('[DIAG] Chamando getLatestEmployeeRecord com ID:', employeeId);
+                    console.log('[DIAG] Google.script.run iniciado');
+                    google.script.run
+                        .withSuccessHandler(function(reg) {
+                            console.log('[DIAG] Registro recebido:', reg);
+                            console.log('[DIAG] Chamando atualizarTelaComRegistro');
+                            atualizarTelaComRegistro(reg);
+                        })
+                        .withFailureHandler(function(erro) {
+                            console.error('[DIAG] Erro ao carregar registro:', erro);
+                            const statusDiaEl = document.getElementById('statusDia');
+                            if (statusDiaEl) statusDiaEl.textContent = 'Erro ao carregar registro: ' + erro;
+                        })
+                        .getLatestEmployeeRecord(employeeId);
+                    
+                    console.log('[DIAG] getLatestEmployeeRecord chamado finalizado');
+                    
+                    // 7. Após carregar, verificar tela
+                    setTimeout(() => {
                         const statusDiaEl = document.getElementById('statusDia');
-                        if (statusDiaEl) statusDiaEl.textContent = 'Erro ao carregar registro: ' + erro;
-                    })
-                    .getLatestEmployeeRecord(usuario.userId);
+                        console.log('[DIAG] statusDia após carregamento:', statusDiaEl ? statusDiaEl.textContent : 'null');
+                        console.log('[DIAG] body display check - seria: block (CSS)');
+                    }, 1500);
+                    
+                }, 800);
                 
-                console.log('[DEBUG] carregarPagina() concluído');
+                console.log('[DIAG] carregarPagina() scheduleado');
                 
-                // Garantir que algo esteja visível na tela
-                const statusDiaEl = document.getElementById('statusDia');
-                if (statusDiaEl && !statusDiaEl.textContent) {
-                    statusDiaEl.textContent = 'Página carregada ✅';
-                }
+                // 8. Garantir body visível
+                document.body.style.display = 'block';
+                document.documentElement.style.display = 'block';
+                
             } catch (error) {
-                console.error('ERRO FATAL em carregarPagina:', error);
-                
-                // Mostrar erro na tela de forma visível
+                console.error('[DIAG] ERRO FATAL carregarPagina:', error);
                 const corpo = document.querySelector('.container');
                 if (corpo) {
                     corpo.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><strong>Erro ao carregar a tela:</strong><br>' + error.toString() + '</div>';
                 }
-                const msgEl = document.getElementById('mensagem');
-                if (msgEl) {
-                    msgEl.className = 'mensagem erro';
-                    msgEl.textContent = 'Erro ao carregar a tela: ' + error.toString();
-                }
-                const statusDiaEl = document.getElementById('statusDia');
-                if (statusDiaEl) statusDiaEl.textContent = 'ERRO: ' + error.toString();
             }
         }
 
@@ -339,8 +379,24 @@
         // PREENCHER TELA COM DADOS DO REGISTRO
         // ==========================================
         function atualizarTelaComRegistro(reg) {
+            console.log('[DIAG] atualizarTelaComRegistro chamado, reg:', reg ? 'OBJETO' : 'NULL/UNDEFINED');
             registroAtual = reg;
             
+            // Verificar se reg é nulo/undefined
+            if (!reg) {
+                console.log('[DIAG] registro é nulo/undefined - mostrando mensagem');
+                document.getElementById('statusDia').textContent = '⚠️ Sem registro hoje';
+                document.getElementById('horarioEntrada').textContent = '—';
+                document.getElementById('saidaIntervalo').textContent = '—';
+                document.getElementById('retornoIntervalo').textContent = '—';
+                document.getElementById('horarioSaida').textContent = '—';
+                document.getElementById('horasTrabalhadas').textContent = '—';
+                proximaAcao = 'entrada';
+                atualizarBotaoPrincipal();
+                return;
+            }
+            
+            console.log('[DIAG] reg existe, preenchendo tela');
             // Preencher horários
             document.getElementById('horarioEntrada').textContent = reg?.entrada || '—';
             document.getElementById('saidaIntervalo').textContent = reg?.saidaIntervalo || '—';
@@ -349,11 +405,12 @@
             document.getElementById('horasTrabalhadas').textContent = reg?.totalHorasTrabalhadas || '—';
             
             // Definir status
-            if (!reg || !reg.entrada) {
-                // Verificar se hoje é dia de folga
+            if (!reg.entrada) {
+                console.log('[DIAG] Nenhuma entrada - verificando folga');
                 const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
                 google.script.run
                     .withSuccessHandler(ehFolga => {
+                        console.log('[DIAG] ehFolga:', ehFolga);
                         if (ehFolga) {
                             document.getElementById('statusDia').textContent = '📅 Dia de Folga';
                             document.getElementById('btnPonto').disabled = true;
@@ -366,27 +423,32 @@
                         }
                     })
                     .withFailureHandler(function(erro) {
-                        console.error('Erro ao verificar folga:', erro);
+                        console.error('[DIAG] Erro ao verificar folga:', erro);
                         document.getElementById('statusDia').textContent = 'Aguardando entrada';
                         proximaAcao = 'entrada';
                         atualizarBotaoPrincipal();
                     })
-                    .isDiaFolga(usuario.userId || usuario.idFuncionario, hoje);
+                    .isDiaFolga(usuario.userId || usuario.idFuncionario || 0, hoje);
             } else if (reg.saida) {
+                console.log('[DIAG] Saída registrada');
                 document.getElementById('statusDia').textContent = '✅ Jornada finalizada';
                 proximaAcao = null;
             } else if (!reg.saidaIntervalo) {
+                console.log('[DIAG] Em andamento - saída intervalo');
                 document.getElementById('statusDia').textContent = '🔄 Em andamento';
                 proximaAcao = 'saida_intervalo';
             } else if (!reg.retornoIntervalo) {
+                console.log('[DIAG] Em intervalo');
                 document.getElementById('statusDia').textContent = '☕ Em intervalo';
                 proximaAcao = 'retorno_intervalo';
             } else {
+                console.log('[DIAG] Em andamento completo');
                 document.getElementById('statusDia').textContent = '🔄 Em andamento';
                 proximaAcao = 'saida';
             }
             
             // Atualizar botão
+            console.log('[DIAG] Chamando atualizarBotaoPrincipal');
             atualizarBotaoPrincipal();
         }
 
@@ -414,7 +476,6 @@
                 saida: 'btn-saida'
             };
             
-            // Resetar classes
             btn.className = 'btn-main';
             
             if (!proximaAcao) {
@@ -433,25 +494,35 @@
         function registrarAcao() {
             if (!proximaAcao) return;
             
+            console.log('[DIAG] registrarAcao called, proximaAcao:', proximaAcao);
             ocultarMensagem();
+            
+            let employeeIdForServer = usuario.userId || usuario.idFuncionario;
+            if (!employeeIdForServer || employeeIdForServer === 0) {
+                employeeIdForServer = 'admin_' + (usuario.name || usuario.userName || 'admin');
+                console.log('[DIAG] Usando employeeId especial para admin:', employeeIdForServer);
+            }
             
             google.script.run
                 .withSuccessHandler(resposta => {
+                    console.log('[DIAG] registerClockAction sucesso:', resposta);
                     if (resposta.success) {
                         mostrarMensagem(resposta.message, 'sucesso');
-                        // Recarregar dados
+                        console.log('[DIAG] Recarregando dados');
                         google.script.run
                             .withSuccessHandler(atualizarTelaComRegistro)
-                            .getLatestEmployeeRecord(usuario.userId || usuario.idFuncionario);
+                            .getLatestEmployeeRecord(employeeIdForServer);
                     } else {
+                        console.log('[DIAG] registerClockAction erro:', resposta.message);
                         mostrarMensagem(resposta.message, 'erro');
                     }
                 })
                 .withFailureHandler(erro => {
+                    console.error('[DIAG] registerClockAction falha:', erro);
                     mostrarMensagem('Erro: ' + erro.toString(), 'erro');
                 })
                 .registerClockAction(
-                    usuario.userId || usuario.idFuncionario,
+                    employeeIdForServer,
                     usuario.userName || usuario.name,
                     proximaAcao,
                     localizacao
@@ -484,35 +555,34 @@
             window.location.href = '?page=login';
         }
 
-        alert('DEBUG: employee.html ESTÁ RODANDO!');
         // ==========================================
         // INICIAR
         // ==========================================
         try {
-        // Garantir que o body seja visível
-        document.body.style.display = 'block';
-        document.documentElement.style.display = 'block';
-        
-        // Inicializar relógio dentro do carregarPagina para evitar erro antes do onload
-        setInterval(atualizarRelogio, 1000);
-        window.onload = carregarPagina;
-        // Também executar imediatamente caso o onload já tenha disparado
-        if (document.readyState === 'loading') {
+            console.log('[DIAG] Script init: garantindo body visível');
+            document.body.style.display = 'block';
+            document.documentElement.style.display = 'block';
+            
+            console.log('[DIAG] Setting onload e intervalos');
+            setInterval(atualizarRelogio, 1000);
             window.onload = carregarPagina;
-        } else {
-            carregarPagina();
+            if (document.readyState === 'loading') {
+                window.onload = carregarPagina;
+            } else {
+                carregarPagina();
+            }
+        } catch (erro) {
+            console.error('[DIAG] ERRO FATAL employee.html main:', erro);
+            document.body.style.display = 'block';
+            document.documentElement.style.display = 'block';
+            const container = document.getElementById('container');
+            if (container) {
+                container.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><h3>Erro ao carregar página</h3><p>' + erro.toString() + '</p></div>';
+            } else {
+                document.body.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><h3>Erro ao carregar página</h3><p>' + erro.toString() + '</p></div>';
+            }
         }
-} catch (erro) {
-        console.error('[ERRO FATAL employee.html]', erro);
-        document.body.style.display = 'block';
-        document.documentElement.style.display = 'block';
-        const container = document.getElementById('container');
-        if (container) {
-            container.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><h3>Erro ao carregar página</h3><p>' + erro.toString() + '</p></div>';
-        } else {
-            document.body.innerHTML = '<div style="padding:20px;color:red;text-align:center;"><h3>Erro ao carregar página</h3><p>' + erro.toString() + '</p></div>';
-        }
-    }
+        console.log('[DIAG] employee.html script loading FINALIZADO');
     </script>
 </body>
 </html>

@@ -24,27 +24,37 @@ const ESCALAS_DISPONIVEIS = {
 function doGet(e) {
   Logger.log("=== doGet chamado ===");
   try {
-    if (e && e.parameter.page === 'geral') {
+    // Obter página do parâmetro, com fallback seguro
+    const page = e && e.parameter ? (e.parameter.page || '') : '';
+    Logger.log("Página solicitada: '" + page + "'");
+    
+    if (page === 'geral') {
       return HtmlService.createTemplateFromFile('admin').evaluate()
         .setTitle('Admin - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    } else if (e && e.parameter.page === 'Equipe') {
+    } else if (page === 'Equipe') {
       return HtmlService.createTemplateFromFile('Equipe').evaluate()
         .setTitle('Equipe - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    } else if (e && e.parameter.page === 'Registros') {
+    } else if (page === 'Registros') {
       return HtmlService.createTemplateFromFile('Registros').evaluate()
         .setTitle('Registros - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    } else if (e && e.parameter.page === 'Ajustes') {
+    } else if (page === 'Ajustes') {
       return HtmlService.createTemplateFromFile('Ajustes').evaluate()
         .setTitle('Ajustes - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    } else if (e && e.parameter.page === 'regPonto') {
+    } else if (page === 'regPonto' || page === '') {
       return HtmlService.createTemplateFromFile('employee').evaluate()
         .setTitle('Registro de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    } else if (page === 'login') {
+      return HtmlService.createTemplateFromFile('login').evaluate()
+        .setTitle('Login - Controle de Ponto')
+        .addMetaTag('viewport', 'width=device-width, initial-scale=1');
     } else {
+      // Sem página especificada - mostrando login (isto inclui o caso em que page for undefined)
+      Logger.log("Nenhuma página especificada, mostrando login");
       return HtmlService.createTemplateFromFile('login').evaluate()
         .setTitle('Login - Controle de Ponto')
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
@@ -76,7 +86,7 @@ function processLogin(username, password) {
         const sheetPassword = String(adminData[i][2]).trim();
         if (sheetUsername === username && sheetPassword === password) {
           Logger.log('✓ Login ADMIN bem-sucedido: ' + username);
-          return { success: true, role: 'admin', name: adminData[i][3], userId: null };
+          return { success: true, role: 'admin', name: adminData[i][3] };
         }
       }
     }
@@ -548,10 +558,14 @@ function getLatestEmployeeRecord(employeeId) {
     const records = sheet.getDataRange().getValues();
     if (records.length <= 1) { Logger.log('Aba vazia'); return null; }
     const today = Utilities.formatDate(new Date(), TIMEZONE, 'dd/MM/yyyy');
+    
+    // Normalizar employeeId - se for null, undefined ou "null", usar 0
+    const idNormalizado = employeeId != null ? String(employeeId).trim() : '0';
+    
     for (let i = records.length - 1; i >= 1; i--) {
       const record = records[i];
       const recordDateStr = formatDateBR(record[3]);
-      if (String(record[1]) === String(employeeId) && recordDateStr === today) {
+      if (String(record[1]) === idNormalizado && recordDateStr === today) {
         return {
           row: i + 1, idRegistro: record[0], idFuncionario: record[1], nomeFuncionario: record[2],
           data: recordDateStr, entrada: formatTimeForDisplay(record[4]),
@@ -561,6 +575,24 @@ function getLatestEmployeeRecord(employeeId) {
           totalHorasTrabalhadas: formatDurationForDisplay(record[8]),
           geolocalizacao: record[9], observacoes: String(record[10] || '')
         };
+      }
+    }
+    // Se não encontrou registro hoje, retornar último registro ANY dia (para funcionar mesmo sem registro de hoje)
+    if (records.length > 1) {
+      for (let i = records.length - 1; i >= 1; i--) {
+        const record = records[i];
+        const recordDateStr = formatDateBR(record[3]);
+        if (String(record[1]) === idNormalizado) {
+          return {
+            row: i + 1, idRegistro: record[0], idFuncionario: record[1], nomeFuncionario: record[2],
+            data: recordDateStr || 'Não datado', entrada: formatTimeForDisplay(record[4]),
+            saidaIntervalo: formatTimeForDisplay(record[5]),
+            retornoIntervalo: formatTimeForDisplay(record[6]),
+            saida: formatTimeForDisplay(record[7]),
+            totalHorasTrabalhadas: formatDurationForDisplay(record[8]),
+            geolocalizacao: record[9], observacoes: String(record[10] || '')
+          };
+        }
       }
     }
     return null;
