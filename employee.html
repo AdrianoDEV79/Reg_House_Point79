@@ -220,58 +220,81 @@
         // INICIALIZAÇÃO
         // ==========================================
         function carregarPagina() {
-            // Verificar sessão
-            const sessao = sessionStorage.getItem('usuarioLogado');
-            if (!sessao) {
-                window.location.href = '?page=login';
-                return;
-            }
             try {
-                usuario = JSON.parse(sessao);
-            } catch (e) {
-                console.error('Erro ao ler sessão:', e);
-                sessionStorage.removeItem('usuarioLogado');
-                window.location.href = '?page=login';
-                return;
-            }
-            
-            // Exibir nome
-            document.getElementById('nomeUsuario').textContent = 
-                'Bem-vindo, ' + (usuario.userName || usuario.name || 'Usuário');
-            
-            // Capturar localização
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    pos => {
-                        localizacao = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
-                        document.getElementById('coordenadas').textContent = localizacao;
-                        document.getElementById('statusLocalizacao').textContent = 'Você está no local correto ✅';
-                        document.getElementById('statusGeo').textContent = '✓ Registrada';
-                        document.getElementById('statusGeo').style.color = 'var(--success)';
-                    },
-                    err => {
-                        localizacao = 'Não autorizada';
-                        document.getElementById('statusLocalizacao').textContent = 'Sem permissão de localização ⚠️';
-                        document.getElementById('statusGeo').textContent = 'Não autorizada';
-                        document.getElementById('statusGeo').style.color = 'var(--warning)';
-                    }
-                );
-            } else {
-                document.getElementById('statusLocalizacao').textContent = 'Navegador não suporta ❌';
-            }
-            
-            // Carregar último registro do dia (apenas para funcionário, não admin)
-            if (usuario.role === 'usuario') {
-                google.script.run
-                    .withSuccessHandler(atualizarTelaComRegistro)
-                    .withFailureHandler(function(erro) {
-                        console.error('Erro ao carregar registro:', erro);
-                        document.getElementById('statusDia').textContent = 'Erro ao carregar registro';
-                    })
-                    .getLatestEmployeeRecord(usuario.userId);
-            } else {
-                // Admin: definir status padrão
-                document.getElementById('statusDia').textContent = '✅ Logado como Administrador';
+                // Verificar sessão
+                const sessao = sessionStorage.getItem('usuarioLogado');
+                if (!sessao) {
+                    window.location.href = '?page=login';
+                    return;
+                }
+                try {
+                    usuario = JSON.parse(sessao);
+                } catch (e) {
+                    console.error('Erro ao ler sessão:', e);
+                    sessionStorage.removeItem('usuarioLogado');
+                    window.location.href = '?page=login';
+                    return;
+                }
+                
+                // Exibir nome
+                const nomeEl = document.getElementById('nomeUsuario');
+                if (nomeEl) {
+                    nomeEl.textContent = 'Bem-vindo, ' + (usuario.userName || usuario.name || 'Usuário');
+                }
+                
+                // Capturar localização
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        pos => {
+                            localizacao = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+                            const coordenadasEl = document.getElementById('coordenadas');
+                            if (coordenadasEl) coordenadasEl.textContent = localizacao;
+                            const statusLocalEl = document.getElementById('statusLocalizacao');
+                            if (statusLocalEl) statusLocalEl.textContent = 'Você está no local correto ✅';
+                            const statusGeoEl = document.getElementById('statusGeo');
+                            if (statusGeoEl) {
+                                statusGeoEl.textContent = '✓ Registrada';
+                                statusGeoEl.style.color = 'var(--success)';
+                            }
+                        },
+                        err => {
+                            localizacao = 'Não autorizada';
+                            const statusLocalEl = document.getElementById('statusLocalizacao');
+                            if (statusLocalEl) statusLocalEl.textContent = 'Sem permissão de localização ⚠️';
+                            const statusGeoEl = document.getElementById('statusGeo');
+                            if (statusGeoEl) {
+                                statusGeoEl.textContent = 'Não autorizada';
+                                statusGeoEl.style.color = 'var(--warning)';
+                            }
+                        }
+                    );
+                } else {
+                    const statusLocalEl = document.getElementById('statusLocalizacao');
+                    if (statusLocalEl) statusLocalEl.textContent = 'Navegador não suporta ❌';
+                }
+                
+                // Carregar último registro do dia (apenas para funcionário, não admin)
+                if (usuario.role === 'usuario') {
+                    google.script.run
+                        .withSuccessHandler(atualizarTelaComRegistro)
+                        .withFailureHandler(function(erro) {
+                            console.error('Erro ao carregar registro:', erro);
+                            const statusDiaEl = document.getElementById('statusDia');
+                            if (statusDiaEl) statusDiaEl.textContent = 'Erro ao carregar registro';
+                        })
+                        .getLatestEmployeeRecord(usuario.userId);
+                } else {
+                    // Admin: definir status padrão
+                    const statusDiaEl = document.getElementById('statusDia');
+                    if (statusDiaEl) statusDiaEl.textContent = '✅ Logado como Administrador';
+                }
+            } catch (error) {
+                console.error('ERRO FATAL em carregarPagina:', error);
+                const msgEl = document.getElementById('mensagem');
+                if (msgEl) {
+                    msgEl.className = 'mensagem erro';
+                    msgEl.textContent = 'Erro ao carregar a tela: ' + error.toString();
+                }
             }
         }
 
