@@ -274,8 +274,22 @@
             
             // Definir status
             if (!reg || !reg.entrada) {
-                document.getElementById('statusDia').textContent = 'Aguardando entrada';
-                proximaAcao = 'entrada';
+                // Verificar se hoje é dia de folga
+                const hoje = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                google.script.run
+                    .withSuccessHandler(ehFolga => {
+                        if (ehFolga) {
+                            document.getElementById('statusDia').textContent = '📅 Dia de Folga';
+                            document.getElementById('btnPonto').disabled = true;
+                            document.getElementById('btnPonto').innerHTML = '<i class="fas fa-bed"></i> Dia de Folga';
+                            proximaAcao = null;
+                        } else {
+                            document.getElementById('statusDia').textContent = 'Aguardando entrada';
+                            proximaAcao = 'entrada';
+                            atualizarBotaoPrincipal();
+                        }
+                    })
+                    .isDiaFolga(usuario.userId || usuario.idFuncionario, hoje);
             } else if (reg.saida) {
                 document.getElementById('statusDia').textContent = '✅ Jornada finalizada';
                 proximaAcao = null;

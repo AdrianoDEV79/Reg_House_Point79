@@ -78,6 +78,38 @@
                 <div class="toggle-switch active" id="notificacoes" onclick="alternar('notificacoes')"></div>
             </div>
             
+            <div class="section-title">👥 Escala por Funcionário</div>
+            <div class="form-group">
+                <label>Selecione o funcionário</label>
+                <select id="escalaFuncionario" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:15px;background:white;"></select>
+            </div>
+            <div class="form-group">
+                <label>Tipo de escala</label>
+                <select id="escalaTipo" style="width:100%;padding:12px;border:2px solid var(--border);border-radius:10px;font-size:15px;background:white;">
+                    <option value="5x2_40h">5x2 - 40h semanal (8h/dia, folga Q/D)</option>
+                    <option value="5x2_44h">5x2 - 44h semanal (8h48m/dia, folga Q/D)</option>
+                    <option value="5x2_sabado_parcial">5x2 com sábado parcial (4h, folga Q/D)</option>
+                    <option value="personalizado">Personalizado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Dias de folga (separados por vírgula)</label>
+                <input type="text" id="escalaFolgas" placeholder="Ex: 3,7 (Quarta e Domingo)" value="3,7">
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;">1=Seg, 2=Ter, 3=Qua, 4=Qui, 5=Sex, 6=Sáb, 7=Dom</div>
+            </div>
+            <div class="form-group">
+                <label>Carga horária diária (horas)</label>
+                <input type="number" id="escalaCargaDia" min="4" max="12" value="8">
+            </div>
+            <div class="form-group">
+                <label>Carga horária sábado (horas, 0 se não trabalha)</label>
+                <input type="number" id="escalaCargaSabado" min="0" max="12" value="0">
+            </div>
+            <button class="btn btn-primary" onclick="salvarEscalaFunc()">
+                <i class="fas fa-save"></i> Salvar Escala do Funcionário
+            </button>
+            <div id="sucessoEscala" class="msg-sucesso" style="margin-top:10px;"><i class="fas fa-check-circle"></i> Escala salva com sucesso!</div>
+            
             <button class="btn btn-primary" onclick="salvar()">
                 <i class="fas fa-save"></i> Salvar Configurações
             </button>
@@ -139,8 +171,50 @@
                 })
                 .salvarConfiguracoes(config);
         }
+
+        // ==========================================
+        // ESCALA POR FUNCIONÁRIO
+        // ==========================================
         
-        window.onload = carregarConfig;
+        function carregarFuncionariosEscala() {
+            google.script.run
+                .withSuccessHandler(funcionarios => {
+                    const select = document.getElementById('escalaFuncionario');
+                    select.innerHTML = '<option value="">-- Selecionar --</option>';
+                    funcionarios.forEach(f => {
+                        select.innerHTML += `<option value="${f.id}">${f.nome || f.usuario} (${f.usuario})</option>`;
+                    });
+                })
+                .getListaUsuarios();
+        }
+        
+        function salvarEscalaFunc() {
+            const funcionarioId = document.getElementById('escalaFuncionario').value;
+            const tipo = document.getElementById('escalaTipo').value;
+            const folgasStr = document.getElementById('escalaFolgas').value;
+            const cargaDia = parseInt(document.getElementById('escalaCargaDia').value) || 8;
+            const cargaSabado = parseInt(document.getElementById('escalaCargaSabado').value) || 0;
+            
+            if (!funcionarioId) {
+                alert('Selecione um funcionário');
+                return;
+            }
+            
+            const folgas = folgasStr.split(',').map(f => parseInt(f.trim())).filter(f => !isNaN(f));
+            
+            google.script.run
+                .withSuccessHandler(() => {
+                    const msg = document.getElementById('sucessoEscala');
+                    msg.style.display = 'block';
+                    setTimeout(() => msg.style.display = 'none', 3000);
+                })
+                .salvarEscalaFuncionario(funcionarioId, tipo, folgas, cargaDia, cargaSabado);
+        }
+        
+        window.onload = function() {
+            carregarConfig();
+            carregarFuncionariosEscala();
+        };
     </script>
 </body>
 </html>

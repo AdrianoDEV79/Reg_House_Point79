@@ -5,6 +5,17 @@
 
 const TIMEZONE = "America/Sao_Paulo";
 
+// Dias da semana: 1=Segunda, 2=Terça, 3=Quarta, 4=Quinta, 5=Sexta, 6=Sábado, 7=Domingo
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+// Configurações de escala disponíveis
+const ESCALAS_DISPONIVEIS = {
+  '5x2_40h': { cargaSemanal: 40, cargaDiaria: 8, nome: '5x2 - 40h semanal (8h/dia)' },
+  '5x2_44h': { cargaSemanal: 44, cargaDiaria: 8.8, nome: '5x2 - 44h semanal (8h48m/dia)' },
+  '5x2_sabado_parcial': { cargaSemanal: 40, cargaDiaria: 8, nome: '5x2 com sábado parcial (4h)', sabado: true, cargaSabado: 4 },
+  'personalizado': { cargaSemanal: 40, cargaDiaria: 8, nome: 'Personalizado' }
+};
+
 // ============================================================
 // ROTEAMENTO DE PÁGINAS
 // ============================================================
@@ -143,6 +154,219 @@ function calculateTotalHours(entradaStr, saidaIntervaloStr, retornoIntervaloStr,
 }
 
 // ============================================================
+// ESCALA 5X2 - CONFIGURAÇÃO E VALIDAÇÃO DE FOLGAS
+// ============================================================
+
+function getEscalaFuncionario(employeeId) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const escalaSheet = ss.getSheetByName('config_escala');
+    if (!escalaSheet) return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8 };
+    const dados = escalaSheet.getDataRange().getValues();
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]) === String(employeeId)) {
+        return {
+          tipo: dados[i][1] || '5x2_40h',
+          folgas: dados[i][2] ? String(dados[i][2]).split(',').map(Number) : [3, 7],
+          cargaDiaria: dados[i][3] || 8,
+          cargaSabado: dados[i][4] || 0
+        };
+      }
+    }
+    return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8 };
+  } catch (e) {
+    Logger.log('ERRO getEscalaFuncionario: ' + e.toString());
+    return { tipo: '5x2_40h', folgas: [3, 7], cargaDiaria: 8 };
+  }
+}
+
+function isDiaFolga(employeeId, dataStr) {
+  try {
+    const escala = getEscalaFuncionario(employeeId);
+    if (!escala || !escala.folgas) return false;
+    const data = new Date(dataStr);
+    if (isNaN(data.getTime())) return false;
+    let diaSemana = data.getDay();
+    if (diaSemana === 0) diaSemana = 7;
+    return escala.folgas.includes(diaSemana);
+  } catch (e) {
+    Logger.log('ERRO isDiaFolga: ' + e.toString());
+    return false;
+  }
+}
+
+function salvarEscalaFuncionario(employeeId, tipo, folgas, cargaDiaria, cargaSabado) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let escalaSheet = ss.getSheetByName('config_escala');
+    if (!escalaSheet) {
+      escalaSheet = ss.insertSheet('config_escala');
+      escalaSheet.appendRow(['idFuncionario', 'tipoEscala', 'folgas', 'cargaDiaria', 'cargaSabado']);
+    }
+    const dados = escalaSheet.getDataRange().getValues();
+    let linhaExistente = -1;
+    for (let i = 1; i < dados.length; i++) {
+      if (String(dados[i][0]) === String(employeeId)) {
+        linhaExistente = i + 1;
+        break;
+      }
+    }
+    const linha = [employeeId, tipo, folgas.join(','), cargaDiaria, cargaSabado];
+    if (linhaExistente > 0) {
+      escalaSheet.getRange(linhaExistente, 1, 1, 5).setValues([linha]);
+    } else {
+      escalaSheet.appendRow(linha);
+    }
+    return { success: true };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+function getTodasEscalas() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const escalaSheet = ss.getSheetByName('config_escala');
+    if (!escalaSheet) return [];
+    const dados = escalaSheet.getDataRange().getValues();
+    return dados.slice(1).map(row => ({
+      idFuncionario: row[0],
+      tipo: row[1] || '5x2_40h',
+      folgas: row[2] ? String(row[2]).split(',').map(Number) : [3, 7],
+      cargaDiaria: row[3] || 8,
+      cargaSabado: row[4] || 0
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
+// ============================================================
+// RECÁLCULO DE TOTAL DE HORAS (PARA EDIÇÃO MANUAL DO ADMIN)
+// ============================================================
+
+function recalcularTotalHoras(rowIndex) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName('registro_ponto');
+    if (!sheet) return { success: false, message: 'Aba de registro não encontrada.' };
+    const entrada = sheet.getRange(rowIndex, 5).getValue();
+    const saidaInt = sheet.getRange(rowIndex, 6).getValue();
+    const retornoInt = sheet.getRange(rowIndex, 7).getValue();
+    const saida = sheet.getRange(rowIndex, 8).getValue();
+    const entradaStr = formatTimeForDisplay(entrada);
+    const saidaIntStr = formatTimeForDisplay(saidaInt);
+    const retornoIntStr = formatTimeForDisplay(retornoInt);
+    const saidaStr = formatTimeForDisplay(saida);
+    const totalHoras = calculateTotalHours(entradaStr, saidaIntStr, retornoIntStr, saidaStr);
+    if (totalHoras) {
+      sheet.getRange(rowIndex, 9).setValue(totalHoras);
+    }
+    return { success: true, totalHoras: totalHoras };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+function onEdit(e) {
+  try {
+    if (!e) return;
+    const sheet = e.source.getActiveSheet();
+    if (sheet.getSheetName() !== 'registro_ponto') return;
+    const row = e.range.getRow();
+    const col = e.range.getColumn();
+    if (col >= 5 && col <= 8 && row > 1) {
+      recalcularTotalHoras(row);
+    }
+  } catch (e) {
+    Logger.log('ERRO onEdit: ' + e.toString());
+  }
+}
+
+// ============================================================
+// BANCO DE HORAS
+// ============================================================
+
+function calcularBancoHoras(employeeId, mes, ano) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const regSheet = ss.getSheetByName('registro_ponto');
+    if (!regSheet) return { bancoHoras: 0, totalHorasTrabalhadas: 0, cargaPrevista: 0 };
+    const escala = getEscalaFuncionario(employeeId);
+    const cargaDiaria = escala.cargaDiaria || 8;
+    const dados = regSheet.getDataRange().getValues();
+    let totalHorasTrabalhadas = 0;
+    let diasTrabalhados = 0;
+    for (let i = 1; i < dados.length; i++) {
+      const r = dados[i];
+      if (String(r[1]) !== String(employeeId)) continue;
+      let dStr = '';
+      try {
+        dStr = r[3] instanceof Date ? Utilities.formatDate(r[3], TIMEZONE, 'dd/MM/yyyy')
+          : Utilities.formatDate(new Date(String(r[3])), TIMEZONE, 'dd/MM/yyyy');
+      } catch (e) {}
+      if (!dStr) continue;
+      const partes = dStr.split('/');
+      const dia = parseInt(partes[0], 10);
+      const mesRegistro = parseInt(partes[1], 10);
+      const anoRegistro = parseInt(partes[2], 10);
+      if (mesRegistro !== mes || anoRegistro !== ano) continue;
+      if (r[8]) {
+        const horas = String(r[8]).split(':').map(Number);
+        const horasDec = horas[0] + horas[1] / 60;
+        totalHorasTrabalhadas += horasDec;
+        diasTrabalhados++;
+      }
+    }
+    const cargaPrevista = diasTrabalhados * cargaDiaria;
+    const bancoHoras = totalHorasTrabalhadas - cargaPrevista;
+    return {
+      bancoHoras: bancoHoras,
+      totalHorasTrabalhadas: totalHorasTrabalhadas,
+      cargaPrevista: cargaPrevista,
+      diasTrabalhados: diasTrabalhados
+    };
+  } catch (e) {
+    return { bancoHoras: 0, totalHorasTrabalhadas: 0, cargaPrevista: 0, diasTrabalhados: 0 };
+  }
+}
+
+function getBancoHoras(employeeId) {
+  try {
+    const agora = new Date();
+    const mes = agora.getMonth() + 1;
+    const ano = agora.getFullYear();
+    return calcularBancoHoras(employeeId, mes, ano);
+  } catch (e) {
+    return { bancoHoras: 0, totalHorasTrabalhadas: 0, cargaPrevista: 0, diasTrabalhados: 0 };
+  }
+}
+
+function getBancoHorasTodos() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const userSheet = ss.getSheetByName('usuario');
+    if (!userSheet) return [];
+    const dados = userSheet.getDataRange().getValues();
+    const resultado = [];
+    for (let i = 1; i < dados.length; i++) {
+      const banco = getBancoHoras(dados[i][0]);
+      resultado.push({
+        id: dados[i][0],
+        usuario: dados[i][1] || '',
+        nome: dados[i][3] || dados[i][1] || '',
+        bancoHoras: banco.bancoHoras,
+        totalHorasTrabalhadas: banco.totalHorasTrabalhadas,
+        cargaPrevista: banco.cargaPrevista
+      });
+    }
+    return resultado;
+  } catch (e) {
+    return [];
+  }
+}
+
+// ============================================================
 // REGISTRO DE PONTO
 // ============================================================
 function getLatestEmployeeRecord(employeeId) {
@@ -201,6 +425,13 @@ function registerClockAction(employeeId, employeeName, actionType, geoLocation) 
     const isSaturday = Utilities.formatDate(now, TIMEZONE, 'u') === '6';
     if (isSaturday && (actionType === 'saida_intervalo' || actionType === 'retorno_intervalo')) {
       return { success: false, message: 'Sábado não permite intervalo. Apenas Entrada e Saída.' };
+    }
+
+    // Verificar se hoje é dia de folga para o funcionário
+    const hoje = Utilities.formatDate(now, TIMEZONE, 'dd/MM/yyyy');
+    const ehDiaFolga = isDiaFolga(employeeId, hoje);
+    if (ehDiaFolga && actionType === 'entrada') {
+      return { success: false, message: 'Hoje é dia de folga para este funcionário.' };
     }
     const latestRecord = getLatestEmployeeRecord(employeeId);
     let expectedAction = 'entrada';
@@ -327,14 +558,28 @@ function getDashboardData() {
       }
     }
     const extrasMes = Object.values(diasExtra).reduce((a,b) => a+b, 0);
+    
+    // Calcular carga horária prevista e banco de horas total
+    let cargaHorariaPrevista = 0;
+    let bancoHorasTotal = 0;
+    for (let i = 1; i < users.length; i++) {
+      const employeeId = users[i][0];
+      const escala = getEscalaFuncionario(employeeId);
+      const banco = calcularBancoHoras(employeeId, parseInt(mesAtual.split('/')[0], 10), new Date().getFullYear());
+      cargaHorariaPrevista += escala.cargaDiaria || 8;
+      bancoHorasTotal += banco.bancoHoras;
+    }
+    
     return {
       totalFunc, presentes, ausentes: totalFunc - presentes,
       extrasHoje: extrasHoje.toFixed(1) + 'h',
       extrasMes: extrasMes.toFixed(1) + 'h',
-      diasComExtra: Object.keys(diasExtra).length
+      diasComExtra: Object.keys(diasExtra).length,
+      cargaHorariaPrevista: cargaHorariaPrevista.toFixed(1) + 'h',
+      bancoHorasTotal: bancoHorasTotal.toFixed(1) + 'h'
     };
   } catch (e) {
-    return { totalFunc: 0, presentes: 0, ausentes: 0, extrasHoje: '0h', extrasMes: '0h', diasComExtra: 0 };
+    return { totalFunc: 0, presentes: 0, ausentes: 0, extrasHoje: '0h', extrasMes: '0h', diasComExtra: 0, cargaHorariaPrevista: '0h', bancoHorasTotal: '0h' };
   }
 }
 
